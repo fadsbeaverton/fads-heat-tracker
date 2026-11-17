@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Heat Tracker · Example Comp</title>
+<meta name="theme-color" content="#0e1020"><link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Heat Tracker">
+<link rel="apple-touch-icon" href="/icon-192.png"><link rel="icon" href="/icon-192.png"><link rel="stylesheet" href="/style.css">
+</head><body><div class="wrap">
+<header class="top"><div class="brand"><div class="logo">💃</div><div><h1 id="compName">Heat Tracker</h1><small id="compSub"></small></div>
+<div class="badges"><span class="ex">Example data</span><div class="live re" id="live"><i class="dot"></i><span>Connecting…</span></div></div></div></header>
+
+<section class="now" id="now"><div class="lbl">Now on the floor</div><div class="big" id="nowNum">Heat –</div><div class="sub" id="nowDesc"></div><div class="next" id="nowNext"></div></section>
+<div class="ann" id="ann"></div>
+
+<nav class="tabs"><button data-t="mine" class="act">My Heats</button><button data-t="sched">Schedule</button><button data-t="all">All Heats</button></nav>
+
+<section id="t-mine">
+  <div id="picker"><input id="q" placeholder="Search your name…" autocomplete="off"><div class="namelist" id="names"></div></div>
+  <div id="mine" class="hidden"><div class="card me"><div class="av" id="av"></div><div><b id="meName"></b><small id="mePro"></small></div><button class="link" id="change">Change</button></div>
+    <div class="summary" id="summary"></div><div id="myHeats"></div></div>
+</section>
+<section id="t-sched" class="sched hidden"></section>
+<section id="t-all" class="allh hidden"></section>
+<div class="foot">Example competition &amp; made-up dancers for demo purposes.<br>Times are estimates — listen for the emcee.</div>
+</div>
+<script src="/live.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+let D, cur = 1, awards = null, me = localStorage.getItem("dancer") || new URLSearchParams(location.search).get("dancer");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ini = (n) => n.split(" ").map((w) => w[0]).join("");
+const mins = (k) => { const m = Math.round(k * D.heatMinutes); return m < 60 ? `~${m} min` : `~${Math.floor(m / 60)}h ${m % 60}m`; };
+let prevDeck = {};
+
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("act", x === b));
+  ["mine", "sched", "all"].forEach((t) => $("#t-" + t).classList.toggle("hidden", t !== b.dataset.t));
+  if (b.dataset.t === "all") { const c = document.querySelector(".allh .cur"); c && c.scrollIntoView({ block: "center" }); }
+});
+
+function heatsFor(id) { return D.heats.filter((h) => h.entries.some((e) => e.studentId === id)); }
+function proName(id) { return D.pros.find((p) => p.id === id).name; }
+function stuName(id) { return D.students.find((s) => s.id === id).name; }
+
+function renderNames() {
+  const q = $("#q").value.toLowerCase();
+  $("#names").innerHTML = D.students.filter((s) => s.name.toLowerCase().includes(q)).map((s) =>
+    `<button data-id="${s.id}"><span>${esc(s.name)}</span><small>${heatsFor(s.id).length} heats</small></button>`).join("");
+  $("#names").querySelectorAll("button").forEach((b) => b.onclick = () => { me = b.dataset.id; localStorage.setItem("dancer", me); render(); });
+}
+$("#q").oninput = renderNames;
+$("#change").onclick = () => { me = null; localStorage.removeItem("dancer"); render(); $("#q").focus(); };
+
+function render() {
+  const h = D.heats[cur - 1], nx = awards ? D.heats[awards.afterHeat] : D.heats[cur];
+  if (awards) {
+    $("#nowNum").innerHTML = `🏆 Awards`;
+    $("#nowDesc").textContent = `after Heat ${awards.afterHeat}` + (awards.time ? ` · ${awards.time}` : "");
+    $("#nowNext").textContent = nx ? `Up next: Heat ${nx.n} — ${nx.style} ${nx.dance} (${nx.level})` : "Final awards of the day!";
+  } else {
+    $("#nowNum").innerHTML = `Heat ${cur} <span>of ${D.heats.length}</span>`;
+    $("#nowDesc").innerHTML = `<span class="pill ${h.style}">${h.style}</span> ${esc(h.dance)} · ${esc(h.level)} · ${esc(h.age)}`;
+    $("#nowNext").textContent = nx ? `Up next: Heat ${nx.n} — ${nx.style} ${nx.dance} (${nx.level})` : "Final heat of the day!";
+  }
+  // My heats
+  const s = me && D.students.find((x) => x.id === me);
+  $("#picker").classList.toggle("hidden", !!s); $("#mine").classList.toggle("hidden", !s);
+  if (s) {
+    $("#av").textContent = ini(s.name); $("#meName").textContent = s.name; $("#mePro").textContent = `with ${proName(s.proId)} · ${s.level}`;
+    const list = heatsFor(s.id), up = list.filter((x) => x.n >= cur);
+    const nextH = up[0];
+    $("#summary").innerHTML = !nextH ? "🎉 You're all done for today — great dancing!" :
+      nextH.n === cur ? `<b>You're dancing NOW</b> — Heat ${cur}. Go get 'em! 💃` :
+      `Your next heat is <b>#${nextH.n}</b> — <b>${nextH.n - cur} heat${nextH.n - cur > 1 ? "s" : ""} away</b> (${mins(nextH.n - cur)}). ${list.length - up.length} of ${list.length} done.`;
+    $("#myHeats").innerHTML = list.map((x) => {
+      const away = x.n - cur, cls = away < 0 ? "done" : away === 0 ? "dancing" : away <= 5 ? "deck" : "";
+      const e = x.entries.find((e) => e.studentId === s.id);
+      const st = away < 0 ? `<b>Done ✓</b>${x.time}` : away === 0 ? `<span class="tag dancing">DANCING NOW</span>` :
+        away === 1 ? `<span class="tag deck">ON DECK</span><br>next` : away <= 5 ? `<span class="tag deck">DANCING SOON</span><br>${away} away` : `<b>in ${away} heats</b>${mins(away)}`;
+      return `<div class="heat ${cls}"><div class="num"><small>HEAT</small>${x.n}</div><div class="d"><b>${esc(x.dance)}</b>
+        <small><span class="pill ${x.style}">${x.style}</span>${esc(x.level)} · ${esc(x.age)}<br>Partner: ${esc(proName(e.proId))} · #${e.couple} · Est. ${x.time}</small></div><div class="st">${st}</div></div>`;
+    }).join("");
+    // buzz when one of my heats becomes on-deck / now
+    const k = nextH ? (nextH.n - cur <= 0 ? "now" + nextH.n : nextH.n - cur <= 5 ? "deck" + nextH.n : "") : "";
+    if (k && !prevDeck[k] && Object.keys(prevDeck).length) navigator.vibrate && navigator.vibrate([200, 100, 200]);
+    if (k) prevDeck[k] = 1; else prevDeck._ = 1;
+  } else renderNames();
+  // Schedule
+  $("#t-sched").innerHTML = D.schedule.map((b) => {
+    const isCur = awards ? (b.kind === "awards" && b.afterHeat === awards.afterHeat) : (b.kind === "heats" && cur >= b.from && cur <= b.to);
+    const extra = b.kind === "heats" ? `<br><small>Heats ${b.from}–${b.to} · until ~${b.end}</small>` : b.end ? `<br><small>until ${b.end}</small>` : "";
+    const icon = { awards: "🏆 ", break: "☕ ", info: "📣 ", heats: "" }[b.kind] || "";
+    return `<div class="blk ${b.kind} ${isCur ? "cur" : ""}"><div class="tm">${b.time}</div><div>${icon}${b.kind === "heats" ? `<span class="pill ${b.style}">${b.style}</span>` : ""}${esc(b.title)}${isCur ? " · <b style='color:var(--ok)'>LIVE</b>" : ""}${extra}</div></div>`;
+  }).join("");
+  // All heats
+  $("#t-all").innerHTML = D.heats.map((x) => `<div class="heat ${!awards && x.n === cur ? "cur" : x.n < cur || (awards && x.n === cur) ? "done" : ""}"><div class="num">${x.n}</div><div class="d"><b><span class="pill ${x.style}">${x.style}</span>${esc(x.dance)} · ${esc(x.level)}</b>
+    <small>${x.time} · ${x.entries.length ? x.entries.map((e) => `#${e.couple} ${esc(stuName(e.studentId))} &amp; ${esc(proName(e.proId))}`).join(", ") : "Open heat (other studios)"}</small></div></div>`).join("");
+}
+
+// The full view shows everyone's entries, so it is staff-only now (PIN). Students use their private /simple link.
+const staffPin = sessionStorage.getItem("pin") || "";
+function staffGate() {
+  document.querySelector(".wrap").innerHTML = `<div style="margin-top:22vh;text-align:center"><h2 style="font-family:Georgia,serif">Full view is staff-only</h2>
+    <p style="color:var(--mut)">Dancers: open the personal link your studio sent you, or <a href="/simple" style="color:var(--gold)">sign in with your code</a>.</p>
+    <input id="sp" type="password" inputmode="numeric" placeholder="Staff PIN" style="max-width:220px;text-align:center;margin:14px auto;display:block">
+    <button class="btn pri" id="spGo" style="width:220px">Unlock</button><div id="spErr" style="color:var(--bad);min-height:20px;margin-top:8px"></div></div>`;
+  const go = async () => { const v = $("#sp").value; const r = await fetch("/api/control", { method: "POST", body: JSON.stringify({ pin: v, action: "check" }) });
+    if (!r.ok) return ($("#spErr").textContent = "Wrong PIN"); sessionStorage.setItem("pin", v); location.reload(); };
+  $("#spGo").onclick = go; $("#sp").onkeydown = (e) => { if (e.key === "Enter") go(); };
+}
+fetch("/api/data", { headers: { "X-Staff-Pin": staffPin } }).then((r) => r.json()).then((d) => {
+  if (!d.students) return staffGate();
+  D = d; $("#compName").textContent = d.comp.name; $("#compSub").textContent = d.comp.subtitle;
+  let dataVer = null;
+  Live.onStatus((st) => setLiveBadge($("#live"), st));
+  Live.onState((st) => {
+    const changed = st.currentHeat !== cur || (st.awards && st.awards.afterHeat) !== (awards && awards.afterHeat); cur = st.currentHeat; awards = st.awards || null; $("#ann").textContent = st.announcement ? "📣 " + st.announcement : "";
+    if (dataVer != null && st.dataVersion != null && st.dataVersion !== dataVer) {
+      fetch("/api/data", { headers: { "X-Staff-Pin": staffPin }, cache: "no-store" }).then((r) => r.json()).then((d) => { if (d.students) { D = d; render(); } });
+    } else render();
+    dataVer = st.dataVersion;
+    if (changed) { $("#now").classList.remove("flash"); void $("#now").offsetWidth; $("#now").classList.add("flash"); }
+  });
+  render(); Live.start();
+});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+</script></body></html>

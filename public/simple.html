@@ -1,0 +1,258 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>My Heats · Example Comp</title><meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png">
+<style>
+:root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--deck:#ffd84d;--now:#2ecc71;--next:#ff9f43}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:20px 24px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}
+.dot.on{background:var(--now)}.dot.off{background:#e55}
+.floor{position:sticky;top:calc(10px + var(--annH,0px));z-index:5;background:#fff;box-shadow:0 -40px 0 40px #fff;margin:26px 0 30px;border:2px solid var(--ink);border-radius:22px;padding:22px 24px 24px}
+.floor small{display:block;font-size:14px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.floor b{display:block;font-size:70px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin-top:4px}.floor.awards b{font-size:52px;letter-spacing:-.03em}
+.floor .d{font-size:24px;font-weight:400;margin-top:6px}.floor .l{font-size:19px;color:var(--mut);margin-top:2px}
+.signin{margin-top:16vh}.signin h1{font-size:30px;margin:0 0 6px}.signin p{color:var(--mut);margin:0 0 22px}
+input{width:100%;font-size:28px;padding:16px 18px;border:2px solid var(--line);border-radius:14px;outline:none;text-align:center;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
+input:focus{border-color:var(--ink)}input::placeholder{letter-spacing:.05em;font-weight:400;font-size:20px;text-transform:none}
+.go{display:block;width:100%;margin-top:12px;padding:18px;border:0;border-radius:14px;background:var(--ink);color:#fff;font-size:19px;font-weight:700}
+.err{color:#e55;min-height:24px;margin-top:10px;text-align:center}
+.who{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}.who b{font-size:19px}
+.who .links{display:flex;gap:14px;align-items:baseline}
+.link{background:none;border:0;color:var(--mut);font-size:15px;text-decoration:underline;padding:0}
+.signin .link{display:block;margin:18px auto 0;font-size:16px}
+.card{border:2px solid var(--line);border-radius:18px;padding:12px 18px 14px;transition:background .3s,border-color .3s}
+.card .tag{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.card .h{font-size:28px;font-weight:800;line-height:1.1;margin-top:2px}.card .d{font-size:19px;margin-top:0}
+.card .bot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}.card .a{font-size:18px;font-weight:700;line-height:20px;margin:0;padding:0}.card .s{display:inline-flex;align-items:center;font-size:14px;font-weight:700;line-height:20px;padding:0 10px;height:20px;border-radius:99px;background:#fff;color:var(--ink);border:1px solid #d0d0d0;flex-shrink:0;white-space:nowrap;margin:0 0 0 auto;box-sizing:content-box}.card .s.ahead{background:#1e9e5a;color:#fff;border-color:#1e9e5a}.card .s.behind{background:#e0393e;color:#fff;border-color:#e0393e}
+.card.deck{background:var(--deck);border-color:var(--deck)}.card.deck .tag{color:var(--ink)}
+.card.next{background:var(--next);border-color:var(--next);animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,159,67,.7)}50%{transform:scale(1.03);box-shadow:0 0 0 14px rgba(255,159,67,0)}}@media (prefers-reduced-motion:reduce){.card.next{animation:none}}.card.next .tag{color:var(--ink)}
+.card.now{background:var(--now);border-color:var(--now)}.card.now .tag{color:var(--ink)}
+h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:34px 0 4px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid var(--line);font-size:19px}.row span:last-child{color:var(--mut);white-space:nowrap}
+.award{display:flex;justify-content:center;align-items:center;width:fit-content;margin:6px auto 10px;padding:6px 36px;border:1.5px solid #e2e2e2;border-radius:999px;background:#f2f2f2;font-size:13px;font-weight:600;color:#444;white-space:nowrap}.award.now{background:#fff;border-color:var(--ink);color:var(--ink)}
+.done{font-size:22px;font-weight:700;padding:24px 0}
+.hidden{display:none!important}
+#sched{padding-top:8px}
+#sched .link{margin-bottom:18px}
+.annstack{position:sticky;top:10px;z-index:6;box-shadow:0 -40px 0 40px #fff;background:#fff;margin:16px 0 8px;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+.banner{position:relative;background:#111;color:#fff;border-radius:16px;padding:14px 46px 14px 16px;overflow-wrap:anywhere;word-wrap:break-word;flex-shrink:0}
+.annstack .more{font-size:12px;color:#888;text-align:center}
+.banner .ann-x{position:absolute;top:8px;right:8px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:16px;line-height:32px;padding:0;cursor:pointer}
+.banner .ann-txt{font-size:16px;font-weight:700;line-height:1.35;white-space:pre-wrap;text-wrap:pretty}
+.banner .ann-time{font-size:13px;color:#bdbdbd;font-weight:400;margin-top:6px}
+.banner.flash{animation:annflash .55s ease}@keyframes annflash{0%,100%{transform:scale(1)}40%{transform:scale(1.03)}}
+@media (prefers-reduced-motion:reduce){.banner.flash{animation:none}}
+.wrap:has(#banner:not(.hidden)) .signin{margin-top:6vh}
+.ev{display:flex;gap:20px;padding:15px 0;border-bottom:1px solid var(--line);font-size:18px}
+.ev .tm{width:6.6em;flex-shrink:0;font-variant-numeric:tabular-nums}
+.ev.done{color:var(--mut)}
+.ev.now{font-weight:700}
+body{background:transparent!important}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(/logo-bg.png) center bottom 28px/min(68vw,270px) auto no-repeat;opacity:.1}
+</style></head><body><div class="wrap">
+<div class="top" id="top"><span>Practice data</span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
+<div id="banner" class="annstack hidden" role="status"></div>
+
+<div id="signin" class="signin hidden">
+  <h1>My Heats</h1><p>Enter the personal code your studio sent you.</p>
+  <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="6-character code">
+  <button class="go" id="go">See my heats</button><div class="err" id="err"></div>
+  <button class="link" id="schedFromSignin">Schedule</button>
+</div>
+
+<div id="main" class="hidden">
+  <div class="floor"><small>Now on the floor</small><b id="nowNum">Heat –</b><div class="d" id="nowDance"></div></div>
+  <div class="who"><b id="meName"></b><span class="links"><button class="link" id="showSched">Schedule</button><button class="link" id="out">Not you? Sign out</button></span></div>
+  <div id="next"></div>
+  <h2 id="restH">Your upcoming heats</h2><div id="rest"></div>
+</div>
+
+<div id="sched" class="hidden">
+  <button class="link" id="backSched">Back</button>
+  <div id="schedList"></div>
+</div>
+</div>
+<script src="/live.js"></script>
+<script>
+function abbr(d) { return String(d || "").replace(/east coast swing/gi, "E.C. Swing"); }
+// Privacy: this page never receives other dancers' heats. It gets only public live info
+// (current heat, dance, level), this dancer's own heats from /api/me, and the public day schedule.
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mins = (k) => { const sec = (live && live.paceSec) || 105; const m = Math.max(1, Math.round(k * sec / 60)); return m >= 60 ? "about " + Math.floor(m / 60) + " hr " + (m % 60) + " min" : "about " + m + " min"; };
+const away = (k) => k === 1 ? "1 heat away" : k + " heats away";
+const schedCls = () => { const o = (live && live.scheduleOffsetMin) || 0; return Math.abs(o) <= 2 ? "ontime" : o > 0 ? "behind" : "ahead"; };
+const sched = () => { const o = (live && live.scheduleOffsetMin) || 0; if (Math.abs(o) <= 2) return "On time"; const a = Math.abs(o), t = a >= 60 ? Math.floor(a / 60) + " hr " + (a % 60) + " min" : a + " min"; return o > 0 ? t + " behind" : t + " ahead"; };
+let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null;
+async function loadProgram() {
+  const d = await fetch("/api/data", { cache: "no-store" }).then((r) => r.json());
+  events = d.events || []; awards = d.awards || [];
+}
+async function refreshMe() {
+  const code = localStorage.getItem("simpleCode");
+  if (!code) return;
+  const r = await fetch("/api/me?code=" + encodeURIComponent(code), { cache: "no-store" }).catch(() => null);
+  if (r && r.ok) { me = await r.json(); localStorage.setItem("simpleMe", JSON.stringify(me)); }
+}
+async function refreshProgram() {
+  try { await loadProgram(); await refreshMe(); } catch (e) {}
+  if (view === "sched") renderSched(); else render();
+}
+loadProgram().then(() => { if (view === "sched") renderSched(); else render(); }).catch(() => {});
+const urlCode = new URLSearchParams(location.search).get("code");
+if (urlCode) history.replaceState(null, "", "/simple"); // keep the code out of the address bar / screenshots
+
+async function signIn(code, fromForm) {
+  code = String(code || "").trim().toUpperCase();
+  if (!code) return show();
+  const r = await fetch("/api/me?code=" + encodeURIComponent(code), { cache: "no-store" }).catch(() => null);
+  if (!r || !r.ok) {
+    if (r && r.status !== 404 && r.status !== 429 && !fromForm) { me = JSON.parse(localStorage.getItem("simpleMe") || "null"); return show(); } // offline: keep last copy
+    localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; show();
+    $("#err").textContent = r && r.status === 429 ? "Too many tries. Wait a few minutes." : r ? "That code didn't work. Check the text from your studio." : "Can't reach the server.";
+    return;
+  }
+  me = await r.json(); localStorage.setItem("simpleCode", code); localStorage.setItem("simpleMe", JSON.stringify(me)); show();
+}
+function show() {
+  const onSched = view === "sched";
+  $("#top").classList.toggle("hidden", onSched);
+  $("#signin").classList.toggle("hidden", !!me || onSched);
+  $("#main").classList.toggle("hidden", !me || onSched);
+  $("#sched").classList.toggle("hidden", !onSched);
+  if (onSched) {
+    if (!started) { 
+started = true; Live.start(); }
+    renderSched();
+    return;
+  }
+  if (!me) { $("#code").focus(); return; }
+  if (!started) { 
+started = true; Live.start(); }
+  render();
+}
+function awardRow(a) {
+  const on = live && live.awards && live.awards.afterHeat === a.afterHeat;
+  return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)} 🏆</span></div>`;
+}
+function heatRow(h, cur) {
+  const t = h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
+  return `<div class="row"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span><span></span></div>`;
+}
+function render() {
+  if (!me || view === "sched") return;
+  if (live) {
+    const cur = live.currentHeat;
+    const onAwards = !!live.awards;
+    $("#nowNum").closest(".floor").classList.toggle("awards", onAwards);
+    if (onAwards) {
+      $("#nowNum").textContent = "🏆 Awards";
+      $("#nowDance").textContent = "";
+    } else {
+      $("#nowNum").textContent = "Heat " + cur;
+      $("#nowDance").textContent = live.now && live.now.dance ? abbr(live.now.dance) : "";
+    }
+  }
+  $("#meName").textContent = me.name;
+  const cur = live ? live.currentHeat : 1;
+  const up = me.heats.filter((h) => h.n >= cur), nx = up[0], restHeats = up.slice(1);
+  const aw = awards.filter((a) => a.afterHeat >= cur);
+  const before = aw.filter((a) => !nx || a.afterHeat < nx.n);
+  const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
+  let nextHtml = before.map(awardRow).join("");
+  if (!nx) nextHtml += `<div class="done">You're all done for today 🎉</div>` + later.map(awardRow).join("");
+  else {
+    const k = nx.n - cur, cls = k === 0 ? "now" : k === 1 ? "next" : k <= 5 ? "deck" : "";
+    const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
+    nextHtml += `<div class="card ${cls}" id="card"><div class="tag">${tag}</div><div class="h">Heat ${nx.n}</div><div class="d">${esc(abbr(nx.dance))}${nx.level ? " · " + esc(nx.level) : ""}</div><div class="bot"><div class="a">${k === 0 ? "On the floor now" : k === 1 ? "You're next!" : ""}</div>${k > 0 && nx.time ? `<div class="s ${schedCls()}">${sched()}</div>` : ""}</div></div>`;
+  }
+  $("#next").innerHTML = nextHtml;
+  let restHtml = "";
+  const pending = later.slice();
+  for (const h of restHeats) {
+    while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
+    restHtml += heatRow(h, cur);
+  }
+  restHtml += pending.map(awardRow).join("");
+  $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
+  $("#rest").innerHTML = restHtml;
+}
+function evStatus(ev, i) {
+  const cur = live ? live.currentHeat : 0;
+  const nowMin = live && live.clockMin;
+  const next = events[i + 1];
+  if (live && live.awards) {
+    const on = ev.title === "Awards" && ev.time === live.awards.time;
+    if (on) return "now";
+    const aw = events.find((e) => e.title === "Awards" && e.time === live.awards.time);
+    if (aw) return ev.minute < aw.minute ? "done" : "";
+  }
+  if (ev.from != null) {
+    if (cur >= ev.from && cur <= ev.to) {
+      if (next && cur === ev.to && nowMin != null && nowMin >= next.minute) return "done";
+      return "now";
+    }
+    return cur > ev.to ? "done" : "";
+  }
+  if (events.slice(i + 1).some((e) => e.from && cur >= e.from)) return "done";
+  const prev = [...events.slice(0, i)].reverse().find((e) => e.from);
+  if (prev && cur < prev.to) return "";
+  if (prev && cur === prev.to && nowMin != null && nowMin < ev.minute) return "";
+  if (!prev && cur >= 1) {
+    if (nowMin == null) return "done";
+    const end = next ? next.minute : (ev.minute + 60);
+    if (nowMin >= end) return "done";
+    if (nowMin >= ev.minute) return "now";
+    return "";
+  }
+  if (nowMin != null) {
+    const end = next ? next.minute : (ev.minute + 120);
+    if (nowMin >= ev.minute && nowMin < end) return "now";
+    if (nowMin >= end) return "done";
+    return "";
+  }
+  return "";
+}
+function renderSched() {
+  $("#schedList").innerHTML = events.map((ev, i) => {
+    const st = evStatus(ev, i);
+    return `<div class="ev ${st}"><span class="tm">${esc(ev.time)}</span><span>${esc(ev.title)}</span></div>`;
+  }).join("");
+}
+function openSched() { view = "sched"; show(); }
+function closeSched() { view = "home"; show(); }
+function fmtPosted(ts) {
+  const d = new Date(ts); let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, "0");
+  const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m + " " + ap;
+}
+const annRO = new ResizeObserver(() => { const el = $("#banner"); const h = el.classList.contains("hidden") ? 0 : el.offsetHeight + 8; document.documentElement.style.setProperty("--annH", h + "px"); });
+function renderBanner() {
+  const el = $("#banner");
+  let gone = []; try { gone = JSON.parse(localStorage.getItem("annGone") || "[]"); } catch (e) {}
+  const all = (live && live.announcements) || [];
+  const ids = new Set(all.map((a) => a.id)); gone = gone.filter((g) => ids.has(g)); localStorage.setItem("annGone", JSON.stringify(gone));
+  const list = all.filter((a) => !gone.includes(a.id)).reverse();
+  if (!list.length) { el.classList.add("hidden"); el.innerHTML = ""; lastAnn = all.length ? all[all.length - 1].id : ""; return; }
+  const top = list[0].id, isNew = lastAnn !== null && top !== lastAnn && !gone.includes(top);
+  el.innerHTML = list.map((a) => `<div class="banner" data-id="${esc(a.id)}"><div class="ann-txt">📣 ${esc(a.text)}</div><div class="ann-time">${esc(fmtPosted(a.at))}</div><button class="ann-x" aria-label="Dismiss">✕</button></div>`).join("");
+  el.querySelectorAll(".ann-x").forEach((b) => b.onclick = () => { const id = b.parentNode.dataset.id; gone.push(id); localStorage.setItem("annGone", JSON.stringify(gone)); renderBanner(); });
+  el.classList.remove("hidden");
+  if (isNew) {
+    const c = el.firstElementChild; c.classList.add("flash"); el.scrollTop = 0;
+    try { navigator.vibrate && navigator.vibrate(140); } catch (e) {}
+  }
+  lastAnn = top;
+}
+$("#go").onclick = () => { $("#err").textContent = ""; signIn($("#code").value, true); };
+$("#code").onkeydown = (e) => { if (e.key === "Enter") $("#go").click(); };
+$("#out").onclick = () => { localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; $("#code").value = ""; show(); };
+$("#showSched").onclick = openSched;
+$("#schedFromSignin").onclick = openSched;
+$("#backSched").onclick = closeSched;
+Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textContent = st === "on" ? "Live" : st === "re" ? "Reconnecting" : "Offline"; });
+Live.onState((st) => { live = st; renderBanner(); const bump = dataVer != null && st.dataVersion != null && st.dataVersion !== dataVer; dataVer = st.dataVersion; if (bump) refreshProgram(); else if (view === "sched") renderSched(); else render(); });
+annRO.observe($("#banner"));
+started = true; Live.start();
+signIn(urlCode || localStorage.getItem("simpleCode"));
+</script></body></html>

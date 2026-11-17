@@ -1,0 +1,434 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Setup · Example Comp</title><meta name="theme-color" content="#ffffff"><link rel="icon" href="/icon-192.png">
+<style>
+:root{--ink:#111;--mut:#8a8a8a;--line:#ececec}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:20px 20px 56px}
+.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut);gap:12px}
+.top a{color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}.dot.on{background:#2ecc71}.dot.off{background:#e55}
+.gate{margin-top:28vh;text-align:center}.gate p{color:var(--mut);margin:0 0 12px}
+input,select,textarea{font:inherit;padding:14px 16px;border:2px solid var(--line);border-radius:14px;outline:none;width:100%;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--ink)}
+#pin{width:200px;letter-spacing:10px;font-size:28px;text-align:center;-webkit-text-security:disc}
+.err{color:#e55;min-height:22px;margin-top:8px}
+button{font:inherit;border:0;border-radius:16px;cursor:pointer}
+.go{display:block;margin:14px auto 0;width:200px;padding:16px;background:var(--ink);color:#fff;font-size:19px;font-weight:700}
+.btn{padding:14px 16px;background:var(--ink);color:#fff;font-weight:700;font-size:16px}
+.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+.btn.danger{background:#fff;color:#e55;border:2px solid #f0c0c0}
+.btn.small{padding:10px 14px;font-size:15px;border-radius:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:0}.row .btn{flex:0 0 auto}
+.hidden{display:none!important}
+h1{font-size:26px;margin:18px 0 8px}
+h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:22px 0 10px}
+.comp{display:flex;gap:10px;margin:16px 0 8px}.comp input{font-weight:700;font-size:18px}
+.tabs{display:flex;gap:6px;margin:12px 0 18px;overflow:auto}
+.tabs button{flex:1;padding:12px 8px;background:#f4f4f4;color:var(--ink);font-weight:700;font-size:15px;border-radius:14px}
+.tabs button.act{background:var(--ink);color:#fff}
+.item{border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 10px}
+.item .nm{font-weight:700}
+.item .meta{font-size:14px;color:var(--mut);margin-top:2px;word-break:break-all}
+.item .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.link{background:none;border:0;color:var(--mut);font-size:15px;text-decoration:underline;padding:0;border-radius:0}
+.filter{margin-bottom:12px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:9}
+.preview{border:2px solid var(--line);border-radius:16px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;font-size:16px;line-height:1.5}
+.preview .bad{color:#e55}.preview .ok{color:#1e9e5a}
+.hint{color:var(--mut);font-size:15px;margin:0 0 12px}
+.back{margin:0 0 14px}
+#stuHeats .item{padding:10px 12px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;font-weight:700}
+</style></head><body><div class="wrap">
+<div class="top"><span>Setup · Staff · <a href="/simple-control">Control</a></span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
+<form id="gate" class="gate" onsubmit="return false"><p>Staff PIN</p><input id="pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="staffpin"><button type="submit" class="go" id="go">Unlock</button><div class="err" id="err"></div></form>
+
+<div id="app" class="hidden">
+  <h1>Setup</h1>
+  <div class="comp"><input id="compName" aria-label="Competition name" placeholder="Competition name"><button class="btn" id="saveComp">Save name</button></div>
+  <nav class="tabs" id="tabs">
+    <button data-t="students" class="act" type="button">Dancers</button>
+    <button data-t="heats" type="button">Heats</button>
+    <button data-t="sched" type="button">Schedule</button>
+    <button data-t="import" type="button">Import</button>
+  </nav>
+
+  <div id="tab-students">
+    <div id="stuListWrap">
+      <h2>Add a dancer</h2>
+      <div class="row">
+        <input id="newName" placeholder="Name" autocomplete="name">
+        <input id="newLevel" placeholder="Level" list="levels">
+        <button class="btn" id="addStu">Add</button>
+      </div>
+      <h2>Dancers</h2>
+      <input class="filter" id="stuQ" placeholder="Search dancers">
+      <div id="stuList"></div>
+    </div>
+    <div id="stuEdit" class="hidden">
+      <button class="link back" id="backStu" type="button">← All dancers</button>
+      <div class="row" style="margin-bottom:10px">
+        <input id="editName" placeholder="Name" autocomplete="name">
+        <input id="editLevel" placeholder="Level" list="levels">
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn" id="saveStu">Save</button>
+        <button class="btn ghost" id="newCodeBtn">New code</button>
+        <button class="btn danger" id="delStu">Delete</button>
+      </div>
+      <div class="item">
+        <div>Code: <code id="stuCode"></code> <button class="btn ghost small" id="copyCode" type="button">Copy</button></div>
+        <div class="meta" id="stuLink"></div>
+        <div class="acts"><button class="btn ghost small" id="copyLink" type="button">Copy link</button></div>
+      </div>
+      <h2>This student’s heats</h2>
+      <div class="row">
+        <input id="addHeatN" type="number" inputmode="numeric" placeholder="Heat #">
+        <input id="addDance" placeholder="Dance">
+        <input id="addStyle" placeholder="Closed/Open" list="styles">
+      </div>
+      <div class="row" style="margin:10px 0">
+        <input id="addEntLevel" placeholder="Level" list="levels">
+        <input id="addPartner" placeholder="Partner (optional)">
+        <input id="addNumber" placeholder="Leader #" inputmode="numeric" autocomplete="off">
+        <button class="btn" id="addEntry">Add heat</button>
+      </div>
+      <div class="hint">If the heat doesn’t exist yet, it will be created.</div>
+      <div id="stuHeats"></div>
+    </div>
+  </div>
+
+  <div id="tab-heats" class="hidden">
+    <h2>Add a heat</h2>
+    <div class="row">
+      <input id="heatN" type="number" inputmode="numeric" placeholder="Heat # (next)">
+      <input id="heatTime" placeholder="Time (e.g. 10:00 AM)">
+    </div>
+    <div class="row" style="margin:10px 0">
+      <input id="heatDance" placeholder="Dance">
+      <input id="heatStyle" placeholder="Closed/Open" list="styles">
+      <button class="btn" id="addHeat">Add</button>
+    </div>
+    <h2>Program</h2>
+    <input class="filter" id="heatQ" placeholder="Search heats">
+    <div id="heatList"></div>
+  </div>
+
+  <div id="tab-sched" class="hidden">
+    <h2>Day schedule</h2>
+    <div class="row">
+      <input id="evTime" placeholder="Time (e.g. 1:00 PM)">
+      <input id="evTitle" placeholder="Event name">
+      <button class="btn" id="addEv">Add</button>
+    </div>
+    <div id="evList" style="margin-top:12px"></div>
+    <h2>Award breaks</h2>
+    <div class="row">
+      <input id="awHeat" type="number" inputmode="numeric" placeholder="After heat #">
+      <input id="awTime" placeholder="Time (e.g. 11:00 AM)">
+      <button class="btn" id="addAw">Add</button>
+    </div>
+    <div id="awList" style="margin-top:12px"></div>
+  </div>
+
+  <div id="tab-import" class="hidden">
+    <p class="hint">Upload a .csv or .xlsx. One row per entry. You can also include schedule and award rows (see the template). Preview first, then Replace all or Merge. Existing students keep their codes when names match.</p>
+    <div class="row">
+      <a class="btn ghost" href="/template.csv" download>Download template</a>
+      <button class="btn ghost" id="exportBtn" type="button">Export current</button>
+    </div>
+    <div style="margin:16px 0"><input id="file" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></div>
+    <div id="previewBox" class="preview hidden"></div>
+    <div class="row hidden" id="applyRow">
+      <button class="btn danger" id="replaceBtn" type="button">Replace all</button>
+      <button class="btn" id="mergeBtn" type="button">Merge</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="levels"><option>Bronze I</option><option>Bronze II</option><option>Bronze III</option><option>Bronze IV</option><option>Silver I</option><option>Silver II</option><option>Gold</option><option>Newcomer</option></datalist>
+<datalist id="styles"><option>Closed</option><option>Open</option></datalist>
+</div>
+<script src="/live.js"></script>
+<script>
+async function fetchRetry(url, opts) {
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await fetch(url, opts);
+      const ct = r.headers.get("content-type") || "";
+      if (ct.includes("application/json") || ct.includes("text/csv")) return r;
+    } catch (e) {}
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  throw new Error("Connection dropped. Please try again.");
+}
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const qp = new URLSearchParams(location.search).get("pin");
+let pin = qp || sessionStorage.getItem("pin") || "";
+if (qp) history.replaceState(null, "", location.pathname);
+let D = null, editing = null, lastFile = null, tab = "students";
+
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 1600);
+}
+async function copyText(s) {
+  s = String(s || "");
+  try { await navigator.clipboard.writeText(s); toast("Copied"); return; } catch {}
+  const i = document.createElement("textarea"); i.value = s; document.body.appendChild(i); i.select();
+  try { document.execCommand("copy"); toast("Copied"); } catch { toast("Copy failed"); }
+  i.remove();
+}
+function linkFor(code) { return location.origin + "/simple?code=" + code; }
+function proName(id) { return ((D.pros || []).find((p) => p.id === id) || {}).name || ""; }
+
+async function admin(body) {
+  let r;
+  try { r = await fetchRetry("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, ...body }) }); } catch (e) { alert(e.message); return null; }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem("pin"); location.reload(); return null; }
+  if (!r.ok) { alert(j.error || "Failed"); return null; }
+  if (j.data) D = j.data;
+  return j;
+}
+
+async function unlock() {
+  pin = $("#pin").value || pin;
+  const r = await fetchRetry("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, action: "check" }) });
+  if (!r.ok) { $("#err").textContent = "Wrong PIN"; return; }
+  sessionStorage.setItem("pin", pin);
+  const d = await fetchRetry("/api/data", { headers: { "X-Staff-Pin": pin }, cache: "no-store" }).then((x) => x.json());
+  D = d;
+  $("#gate").classList.add("hidden"); $("#app").classList.remove("hidden");
+  render();
+  Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textContent = st === "on" ? "Live" : st === "re" ? "Reconnecting" : "Offline"; });
+  let ver = null;
+  Live.onState((st) => {
+    if (ver != null && st.dataVersion !== ver) {
+      fetch("/api/data", { headers: { "X-Staff-Pin": pin }, cache: "no-store" }).then((x) => x.json()).then((d) => { D = d; render(); });
+    }
+    ver = st.dataVersion;
+  });
+  Live.start();
+}
+
+function showTab(t) {
+  tab = t;
+  $$(".tabs button").forEach((b) => b.classList.toggle("act", b.dataset.t === t));
+  ["students", "heats", "sched", "import"].forEach((id) => $("#tab-" + id).classList.toggle("hidden", id !== t));
+  if (t === "students") { editing = null; $("#stuEdit").classList.add("hidden"); $("#stuListWrap").classList.remove("hidden"); }
+}
+
+function render() {
+  if (!D) return;
+  $("#compName").value = (D.comp && D.comp.name) || "";
+  renderStudents();
+  renderStuEdit();
+  renderHeats();
+  renderSched();
+}
+
+function renderStudents() {
+  const q = ($("#stuQ").value || "").toLowerCase();
+  const low = (x) => String(x || "").trim().toLowerCase();
+  const heatsFor = (name) => {
+    const sIds = new Set((D.students || []).filter((x) => low(x.name) === low(name)).map((x) => x.id));
+    const pIds = new Set((D.pros || []).filter((x) => low(x.name) === low(name)).map((x) => x.id));
+    return (D.heats || []).filter((h) => (h.entries || []).some((e) => sIds.has(e.studentId) || pIds.has(e.proId))).length;
+  };
+  const people = (D.students || []).map((s) => ({ kind: "s", id: s.id, name: s.name, level: s.level || "", code: s.code }))
+    .concat((D.pros || []).filter((p) => p.code && !(D.students || []).some((s) => low(s.name) === low(p.name))).map((p) => ({ kind: "p", id: p.id, name: p.name, level: "", code: p.code })))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const list = people.filter((s) => !q || s.name.toLowerCase().includes(q) || (s.code || "").toLowerCase().includes(q) || s.level.toLowerCase().includes(q));
+  $("#stuList").innerHTML = list.map((s) => {
+    const n = heatsFor(s.name);
+    return `<div class="item" data-id="${esc(s.id)}" data-kind="${s.kind}"><div class="nm">${esc(s.name)}</div><div class="meta">${s.level ? esc(s.level) + " · " : ""}${n} heat${n === 1 ? "" : "s"} · <code>${esc(s.code)}</code></div>
+      <div class="acts">${s.kind === "s" ? '<button class="btn ghost small" data-act="edit">Edit</button>' : ""}<button class="btn ghost small" data-act="copy">Copy link</button></div></div>`;
+  }).join("") || `<p class="hint">No dancers yet.</p>`;
+}
+function openStudent(id) {
+  editing = id;
+  $("#stuListWrap").classList.add("hidden");
+  $("#stuEdit").classList.remove("hidden");
+  renderStuEdit();
+}
+function renderStuEdit() {
+  const s = (D.students || []).find((x) => x.id === editing);
+  if (!s) return;
+  $("#editName").value = s.name;
+  $("#editLevel").value = s.level || "";
+  $("#stuCode").textContent = s.code;
+  $("#stuLink").textContent = linkFor(s.code);
+  const heats = (D.heats || []).filter((h) => (h.entries || []).some((e) => e.studentId === s.id));
+  $("#stuHeats").innerHTML = heats.map((h) => {
+    const e = h.entries.find((x) => x.studentId === s.id);
+    const lvl = (e && e.level) || s.level || "";
+    const partner = proName(e && e.proId);
+    const num = e && e.number != null ? String(e.number).trim() : "";
+    return `<div class="item"><div class="nm">${num ? esc(num) + " · " : ""}Heat ${h.n} · ${esc(h.dance || "—")}${h.style ? " · " + esc(h.style) : ""}</div>
+      <div class="meta">${esc(lvl)}${partner ? " · " + esc(partner) : ""}${h.time ? " · " + esc(h.time) : ""}</div>
+      <div class="acts"><button class="btn danger small" data-rm="${h.n}">Remove</button></div></div>`;
+  }).join("") || `<p class="hint">No heats yet.</p>`;
+  $("#addEntLevel").value = "";
+}
+
+function renderHeats() {
+  const q = ($("#heatQ").value || "").toLowerCase();
+  const list = (D.heats || []).filter((h) => !q || String(h.n) === q || (h.dance || "").toLowerCase().includes(q) || (h.style || "").toLowerCase().includes(q) || (h.time || "").toLowerCase().includes(q));
+  $("#heatList").innerHTML = list.map((h) => {
+    const n = (h.entries || []).length;
+    return `<div class="item" data-n="${h.n}"><div class="nm">Heat ${h.n} · ${esc(h.dance || "—")}${h.style ? " · " + esc(h.style) : ""}</div>
+      <div class="meta">${esc(h.time || "no time")} · ${n} entr${n === 1 ? "y" : "ies"}</div>
+      <div class="row" style="margin-top:10px">
+        <input data-f="time" value="${esc(h.time || "")}" placeholder="Time">
+        <input data-f="dance" value="${esc(h.dance || "")}" placeholder="Dance">
+        <input data-f="style" value="${esc(h.style || "")}" placeholder="Closed/Open" list="styles">
+      </div>
+      <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`;
+  }).join("") || `<p class="hint">No heats yet.</p>`;
+}
+
+function renderSched() {
+  $("#evList").innerHTML = (D.events || []).map((ev, i) => `<div class="item" data-i="${i}">
+    <div class="row"><input data-f="time" value="${esc(ev.time || "")}" placeholder="Time"><input data-f="title" value="${esc(ev.title || "")}" placeholder="Event"></div>
+    <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No events yet.</p>`;
+  $("#awList").innerHTML = (D.awards || []).map((a, i) => `<div class="item" data-i="${i}">
+    <div class="row"><input data-f="afterHeat" type="number" inputmode="numeric" value="${a.afterHeat}" placeholder="After heat"><input data-f="time" value="${esc(a.time || "")}" placeholder="Time"></div>
+    <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No award breaks yet.</p>`;
+}
+
+function showPreview(p) {
+  const el = $("#previewBox");
+  if (!p) { el.classList.add("hidden"); $("#applyRow").classList.add("hidden"); return; }
+  const lines = [];
+  lines.push(`${p.students} student${p.students === 1 ? "" : "s"} (${p.newStudents} new, ${p.existingStudents} already in the comp)`);
+  lines.push(`${p.heats} heat${p.heats === 1 ? "" : "s"}, ${p.entries} entr${p.entries === 1 ? "y" : "ies"}`);
+  if (p.events) lines.push(`${p.events} schedule event${p.events === 1 ? "" : "s"}`);
+  if (p.awards) lines.push(`${p.awards} award break${p.awards === 1 ? "" : "s"}`);
+  const err = p.errors || [], warn = p.warnings || [];
+  el.innerHTML = `<div class="${err.length ? "bad" : "ok"}">${esc(lines.join("\n"))}</div>` +
+    (err.length ? `<div class="bad" style="margin-top:8px">${err.map((e) => "Error: " + esc(e)).join("\n")}</div>` : "") +
+    (warn.length ? `<div style="margin-top:8px;color:#8a6a00">${warn.map((e) => "Note: " + esc(e)).join("\n")}</div>` : "") +
+    (err.length ? `<div class="bad" style="margin-top:8px">Fix errors before applying.</div>` : `<div class="ok" style="margin-top:8px">Looks good. Replace all, or Merge with the current program.</div>`);
+  el.classList.remove("hidden");
+  $("#applyRow").classList.toggle("hidden", !!err.length);
+}
+
+$("#gate").onsubmit = (e) => { e.preventDefault(); unlock(); return false; };
+$("#tabs").onclick = (e) => { const b = e.target.closest("button[data-t]"); if (b) showTab(b.dataset.t); };
+$("#saveComp").onclick = async () => { if (await admin({ action: "set-comp", name: $("#compName").value })) toast("Saved"); };
+$("#addStu").onclick = async () => {
+  const j = await admin({ action: "add-student", name: $("#newName").value, level: $("#newLevel").value });
+  if (j) { $("#newName").value = ""; toast("Added " + j.student.name); render(); openStudent(j.student.id); }
+};
+$("#newName").onkeydown = (e) => { if (e.key === "Enter") $("#addStu").click(); };
+$("#newLevel").onkeydown = (e) => { if (e.key === "Enter") $("#addStu").click(); };
+$("#stuQ").oninput = renderStudents;
+$("#stuList").onclick = (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  if (item.dataset.kind === "p") { const p = (D.pros || []).find((x) => x.id === item.dataset.id); if (p && p.code) copyText(linkFor(p.code)); return; }
+  const s = (D.students || []).find((x) => x.id === item.dataset.id);
+  if (!s) return;
+  if (e.target.dataset.act === "copy") copyText(linkFor(s.code));
+  else openStudent(s.id);
+};
+$("#backStu").onclick = () => { editing = null; $("#stuEdit").classList.add("hidden"); $("#stuListWrap").classList.remove("hidden"); renderStudents(); };
+$("#saveStu").onclick = async () => { if (await admin({ action: "update-student", id: editing, name: $("#editName").value, level: $("#editLevel").value })) toast("Saved"); };
+$("#newCodeBtn").onclick = async () => { if (confirm("Generate a new sign-in code? The old one will stop working.")) { const j = await admin({ action: "new-code", id: editing }); if (j) { toast("New code: " + j.student.code); render(); } } };
+$("#delStu").onclick = async () => {
+  if (!confirm("Delete this student and their entries?")) return;
+  if (await admin({ action: "delete-student", id: editing })) { toast("Deleted"); editing = null; $("#stuEdit").classList.add("hidden"); $("#stuListWrap").classList.remove("hidden"); render(); }
+};
+$("#copyCode").onclick = () => copyText($("#stuCode").textContent);
+$("#copyLink").onclick = () => copyText($("#stuLink").textContent);
+let autoDance = "";
+$("#addHeatN").addEventListener("input", () => {
+  const n = parseInt($("#addHeatN").value, 10);
+  const h = (D.heats || []).find((x) => x.n === n);
+  const cur = $("#addDance").value;
+  if (h && h.dance && (cur === "" || cur === autoDance)) { $("#addDance").value = h.dance; autoDance = h.dance; }
+  else if (!h && cur === autoDance) { $("#addDance").value = ""; autoDance = ""; }
+});
+$("#addEntry").onclick = async () => {
+  const j = await admin({ action: "add-entry", studentId: editing, heat: $("#addHeatN").value, dance: $("#addDance").value, style: $("#addStyle").value, level: $("#addEntLevel").value, partner: $("#addPartner").value, number: $("#addNumber").value });
+  if (j) { toast("Heat added"); $("#addHeatN").value = ""; $("#addDance").value = ""; $("#addStyle").value = ""; $("#addPartner").value = ""; $("#addEntLevel").value = ""; $("#addNumber").value = ""; autoDance = ""; render(); }
+};
+$("#addHeatN").onkeydown = (e) => { if (e.key === "Enter") $("#addEntry").click(); };
+$("#addNumber").onkeydown = (e) => { if (e.key === "Enter") $("#addEntry").click(); };
+$("#stuHeats").onclick = async (e) => {
+  const n = e.target.dataset.rm; if (!n) return;
+  if (await admin({ action: "remove-entry", studentId: editing, heat: n })) { toast("Removed"); render(); }
+};
+
+$("#addHeat").onclick = async () => {
+  const j = await admin({ action: "add-heat", n: $("#heatN").value, time: $("#heatTime").value, dance: $("#heatDance").value, style: $("#heatStyle").value });
+  if (j) { toast("Heat added"); $("#heatN").value = ""; $("#heatTime").value = ""; $("#heatDance").value = ""; $("#heatStyle").value = ""; render(); }
+};
+$("#heatQ").oninput = renderHeats;
+$("#heatList").onclick = async (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  const n = item.dataset.n;
+  if (e.target.dataset.act === "del") { if (!confirm("Delete heat " + n + "? Later heats will be renumbered.")) return; if (await admin({ action: "delete-heat", n })) { toast("Deleted"); render(); } }
+  if (e.target.dataset.act === "save") {
+    const time = item.querySelector("[data-f=time]").value, dance = item.querySelector("[data-f=dance]").value, style = item.querySelector("[data-f=style]").value;
+    if (await admin({ action: "update-heat", n, time, dance, style })) toast("Saved");
+  }
+};
+
+$("#addEv").onclick = async () => { if (await admin({ action: "add-event", title: $("#evTitle").value, time: $("#evTime").value })) { $("#evTitle").value = ""; $("#evTime").value = ""; toast("Added"); render(); } };
+$("#evTitle").onkeydown = (e) => { if (e.key === "Enter") $("#addEv").click(); };
+$("#evList").onclick = async (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  const i = +item.dataset.i;
+  if (e.target.dataset.act === "del") { if (await admin({ action: "delete-event", i })) { toast("Deleted"); render(); } }
+  if (e.target.dataset.act === "save") {
+    if (await admin({ action: "update-event", i, title: item.querySelector("[data-f=title]").value, time: item.querySelector("[data-f=time]").value })) toast("Saved");
+  }
+};
+$("#addAw").onclick = async () => { if (await admin({ action: "add-award", afterHeat: $("#awHeat").value, time: $("#awTime").value })) { $("#awHeat").value = ""; $("#awTime").value = ""; toast("Added"); render(); } };
+$("#awTime").onkeydown = (e) => { if (e.key === "Enter") $("#addAw").click(); };
+$("#awList").onclick = async (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  const i = +item.dataset.i;
+  if (e.target.dataset.act === "del") { if (await admin({ action: "delete-award", i })) { toast("Deleted"); render(); } }
+  if (e.target.dataset.act === "save") {
+    if (await admin({ action: "update-award", i, afterHeat: item.querySelector("[data-f=afterHeat]").value, time: item.querySelector("[data-f=time]").value })) toast("Saved");
+  }
+};
+
+async function readFile(file) {
+  lastFile = { name: file.name };
+  if (/\.xlsx$/i.test(file.name)) {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = ""; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    lastFile.xlsxBase64 = btoa(bin);
+  } else lastFile.csv = await file.text();
+}
+async function preview() {
+  if (!lastFile) return;
+  const j = await admin({ action: "preview-import", csv: lastFile.csv, xlsxBase64: lastFile.xlsxBase64 });
+  if (j) showPreview(j.preview);
+}
+$("#file").onchange = async () => { const f = $("#file").files[0]; if (!f) return; await readFile(f); preview(); };
+async function apply(mode) {
+  if (!lastFile) return;
+  if (mode === "replace" && !confirm("Replace the current program with this file? Existing students keep their codes when names match. This cannot be undone from here (export first if you want a backup).")) return;
+  const j = await admin({ action: "apply-import", mode, csv: lastFile.csv, xlsxBase64: lastFile.xlsxBase64 });
+  if (j) { toast(mode === "merge" ? "Merged" : "Replaced"); render(); showPreview(j.preview); }
+}
+$("#replaceBtn").onclick = () => apply("replace");
+$("#mergeBtn").onclick = () => apply("merge");
+$("#exportBtn").onclick = async () => {
+  const r = await fetchRetry("/api/export?pin=" + encodeURIComponent(pin), { cache: "no-store" });
+  if (!r.ok) { alert("Export failed"); return; }
+  const blob = await r.blob();
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "comp.csv"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+if (pin) unlock();
+</script></body></html>

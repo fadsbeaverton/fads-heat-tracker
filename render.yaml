@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: fads-heat-tracker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/state
+    envVars:
+      - key: STAFF_PIN
+        sync: false
+      - key: DEMO
+        value: "1"

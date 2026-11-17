@@ -1,0 +1,11 @@
+Type,Heat,Time,Dance,Style,Level,Student,Partner,Event,AfterHeat
+entry,1,10:00 AM,Cha Cha,Rhythm,Bronze IV,Avery Holloway,Marco Vellani,,
+entry,2,10:02 AM,Rumba,Rhythm,Bronze IV,Avery Holloway,Marco Vellani,,
+entry,1,10:00 AM,Cha Cha,Rhythm,Silver I,Brooke Tanaka,Elena Sorova,,
+schedule,,8:00 AM,,,,,,Registration,
+schedule,,9:00 AM,,,,,,Dance camp,
+schedule,,10:00 AM,,,,,,Closed/Open Rhythm,
+schedule,,11:00 AM,,,,,,Awards,
+schedule,,1:00 PM,,,,,,Lunch,
+award,,11:00 AM,,,,,,,30
+award,,3:00 PM,,,,,,,60

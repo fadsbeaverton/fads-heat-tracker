@@ -1,0 +1,343 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Control · Example Comp</title><meta name="theme-color" content="#ffffff"><link rel="icon" href="/icon-192.png">
+<style>
+:root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--now:#2ecc71}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:520px;margin:0 auto;padding:20px 24px 40px;min-height:100vh;display:flex;flex-direction:column}
+.top{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}.dot.on{background:var(--now)}.dot.off{background:#e55}
+.gate{margin-top:28vh;text-align:center}.gate p{color:var(--mut);margin:0 0 12px}
+input,select,textarea{font:inherit;font-size:17px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;outline:none;background:#fff;width:100%;-webkit-user-select:text;user-select:text}
+input:focus,select:focus,textarea:focus{border-color:var(--ink)}
+#pin{width:200px;letter-spacing:10px;font-size:28px;padding:14px 16px;text-align:center;-webkit-text-security:disc;-webkit-user-select:text;user-select:text}
+.err{color:#e55;min-height:22px;margin-top:8px}
+button{font:inherit;border:0;border-radius:18px;cursor:pointer}
+.go{display:block;margin:14px auto 0;width:200px;padding:16px;background:var(--ink);color:#fff;font-size:19px;font-weight:700}
+#app{flex:1;display:flex;flex-direction:column}.pin{position:sticky;top:var(--tabsH,46px);z-index:5;background:#fff;margin:0 -24px;padding:6px 24px 14px;box-shadow:0 10px 12px -10px rgba(0,0,0,.12)}
+.lbl{text-align:center;margin-top:24px;font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.num{text-align:center;font-size:120px;font-weight:800;line-height:1;letter-spacing:-.04em;margin:4px 0 4px}.num.awards{font-size:56px;letter-spacing:-.03em;line-height:1.1;margin:24px 0 8px}
+.of{text-align:center;color:var(--mut);font-size:17px}.of:empty{display:none}.num .tot{font-size:40px;font-weight:600;color:var(--mut);letter-spacing:-.01em;margin-left:4px}
+.tabs{display:flex;gap:0;margin:10px 0 0;border-bottom:2px solid var(--line);position:sticky;top:0;z-index:6;background:#fff}
+.tabs button{flex:1;background:none;border:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 8px;font-size:15px;font-weight:700;color:var(--mut)}
+.tabs button.act{color:var(--ink);border-bottom-color:var(--ink)}
+.tabdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--ink);margin-left:6px;vertical-align:2px}
+.tabdot.on{display:inline-block}
+.controls{margin-top:8px;padding-top:8px}.btns{display:flex;gap:14px}
+.btns button{flex:1;padding:22px 10px;font-size:24px;font-weight:800}
+#prev{background:var(--line);color:var(--ink)}#next{flex:1.6;background:var(--now);color:var(--ink)}
+.jump{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.jump input{width:130px;font-size:17px;padding:10px;text-align:center}.jump button{background:none;border:2px solid var(--line);padding:10px 18px;font-size:16px;flex:0 0 auto}
+.ann{margin-top:20px}
+.ann .lbl2{font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.ann textarea{width:100%;font:inherit;font-size:17px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;outline:none;resize:vertical;min-height:60px;text-align:left;line-height:1.35}
+.ann textarea:focus{border-color:var(--ink)}
+.ann .row{display:flex;gap:10px;margin-top:10px}
+.annitem{display:flex;align-items:flex-start;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:15px;white-space:pre-wrap;overflow-wrap:anywhere}.annitem span{flex:1}.annrm{border:0;background:#f2f2f2;border-radius:50%;width:28px;height:28px;padding:0;font-size:13px;cursor:pointer;flex-shrink:0}
+.ann .row button{flex:1;padding:14px 12px;font-size:17px;font-weight:700}
+#annSend{background:var(--ink);color:#fff}#annClear{background:#fff;color:var(--ink);border:2px solid var(--line)}
+#annNow{margin-top:4px}
+#annNow:empty{display:none}
+.heats{margin-top:24px}
+.heats .lbl2{font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.heat{border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.heat.cur{border-color:var(--ink)}
+.awrow{display:flex;justify-content:center;align-items:center;gap:8px;width:fit-content;margin:2px auto 12px;background:#f2f2f2;border:1.5px solid #e2e2e2;border-radius:999px;padding:6px 36px;font-weight:600;font-size:13px;color:#444}.awrow.cur{border-color:var(--ink);background:#fff;color:var(--ink)}.awrow .onfl{font-size:10px}
+.heat .nm{font-weight:700}
+.heat .meta{font-size:14px;color:var(--mut);margin-top:2px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}.heat .hd{display:flex;align-items:baseline;gap:10px}.heat .hd .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.heat .cps{font-size:14px;color:var(--ink);margin-top:4px}.heat .cp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.45}
+.heat .who{flex:1;min-width:0;font-size:14px;color:var(--mut);line-height:1.35}
+.heat .onfl{color:var(--ink);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;padding-top:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:0}
+.btn{padding:14px 16px;background:var(--ink);color:#fff;font-weight:700;font-size:16px;border-radius:16px;width:100%;margin-top:10px}
+.btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+.btn.danger{background:#fff;color:#e55;border:2px solid #f0c0c0}
+.btn.small{padding:10px 14px;font-size:15px;border-radius:14px;width:auto;margin:0;flex:0 0 auto}
+.item{border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 10px}
+.item .nm{font-weight:700}
+.item .meta{font-size:14px;color:var(--mut);margin-top:2px}
+.item .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.hint{color:var(--mut);font-size:15px;margin:0}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:520px;max-height:90vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 20px calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+.sheet-hd{position:sticky;top:0;z-index:1;display:flex;justify-content:space-between;align-items:center;margin:-18px 0 14px;padding:18px 0 12px;background:#fff}
+.sheet-title{font-size:22px;font-weight:800}
+.x{width:36px;height:36px;border:0;border-radius:50%;background:#f4f4f4;color:var(--ink);font-size:16px;line-height:36px;padding:0;flex-shrink:0}
+.sheet .lbl2{font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30}
+.hidden{display:none!important}
+body.sheet-open{overflow:hidden}
+body{background:transparent!important}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(/logo-bg.png) center bottom 28px/min(68vw,270px) auto no-repeat;opacity:.1}
+</style></head><body><div class="wrap">
+<div class="top"><span>Practice data · Staff · <a href="/simple-setup" style="color:inherit">Setup</a></span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
+<form id="gate" class="gate" onsubmit="return false"><p>Staff PIN</p><input id="pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="staffpin"><button type="submit" class="go" id="go">Unlock</button><div class="err" id="err"></div></form>
+<div id="app" class="hidden">
+  <div class="tabs" id="tabs">
+    <button type="button" id="tabHeats" class="act" data-t="heats">Heats</button>
+    <button type="button" id="tabAnn" data-t="ann">Announcements<i class="tabdot" id="annDot"></i></button>
+  </div>
+  <div id="panelHeats">
+  <div class="pin" id="pinTop">
+  <div class="lbl">Now on the floor</div>
+  <div class="num" id="num">–</div><div class="of" id="of"></div>
+  <div class="controls">
+  <div class="btns"><button id="prev">◀ Prev</button><button id="next">Next ▶</button></div>
+  <div class="jump"><input id="jump" type="number" inputmode="numeric" placeholder="Heat #"><button id="jumpGo">Jump</button></div>
+  </div>
+  </div>
+  <div class="heats">
+    <div class="lbl2">Heats</div>
+    <div id="heatList"></div>
+  </div>
+  </div>
+  <div id="panelAnn" class="ann hidden">
+    <div class="lbl2">Announcement</div>
+    <textarea id="ann" maxlength="200" placeholder="Message to all students"></textarea>
+    <div class="row"><button id="annSend">Send</button><button id="annClear">Clear all</button></div>
+    <div id="annNow"></div>
+  </div>
+</div></div>
+<div id="sheetBg" class="sheet-bg hidden">
+  <div id="sheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-hd"><div class="sheet-title" id="sheetTitle">Heat</div><button type="button" class="x" id="sheetClose" aria-label="Close">✕</button></div>
+    <div class="row">
+      <input id="hDance" placeholder="Dance" autocomplete="off">
+      <input id="hStyle" placeholder="Closed/Open" list="styles" autocomplete="off">
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="hLevel" placeholder="Level" list="levels" autocomplete="off">
+      <input id="hTime" placeholder="Time (e.g. 10:00 AM)" autocomplete="off">
+    </div>
+    <button type="button" class="btn" id="hSave">Save</button>
+    <div class="lbl2">Dancing in this heat</div>
+    <div id="hCouples"></div>
+    <div class="lbl2">Add a student</div>
+    <select id="hStu" aria-label="Student"><option value="">Choose a student</option></select>
+    <div class="row" style="margin-top:10px">
+      <input id="hEntLevel" placeholder="Level (optional)" list="levels" autocomplete="off">
+      <input id="hPartner" placeholder="Partner (optional)" autocomplete="off">
+      <input id="hNumber" placeholder="Leader #" inputmode="numeric" autocomplete="off">
+    </div>
+    <button type="button" class="btn" id="hAdd">Add</button>
+    <button type="button" class="btn ghost" id="hJump">Jump to this heat</button>
+  </div>
+</div>
+<datalist id="levels"><option>Bronze I</option><option>Bronze II</option><option>Bronze III</option><option>Bronze IV</option><option>Silver I</option><option>Silver II</option><option>Gold</option><option>Newcomer</option></datalist>
+<datalist id="styles"><option>Closed</option><option>Open</option></datalist>
+<script src="/live.js"></script>
+<script>
+async function fetchRetry(url, opts) {
+  for (let i = 0; i < 4; i++) {
+    try {
+      const r = await fetch(url, opts);
+      const ct = r.headers.get("content-type") || "";
+      if (ct.includes("application/json") || ct.includes("text/csv")) return r;
+    } catch (e) {}
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  throw new Error("Connection dropped. Please try again.");
+}
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const qp = new URLSearchParams(location.search).get("pin");
+let D = null, total = 0, pin = qp || sessionStorage.getItem("pin") || "", cur = 1, onAwards = false, openHeat = null;
+if (qp) history.replaceState(null, "", location.pathname);
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 1600);
+}
+function proName(id) { return ((D && D.pros || []).find((p) => p.id === id) || {}).name || ""; }
+function stuById(id) { return (D && D.students || []).find((s) => s.id === id) || null; }
+async function send(body) {
+  const r = await fetchRetry("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem("pin"); location.reload(); }
+  if (!r.ok) alert(j.error || "Failed"); return r.ok;
+}
+async function admin(body) {
+  let r;
+  try { r = await fetchRetry("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, ...body }) }); } catch (e) { alert(e.message); return null; }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { sessionStorage.removeItem("pin"); location.reload(); return null; }
+  if (!r.ok) { alert(j.error || "Failed"); return null; }
+  if (j.data) D = j.data;
+  return j;
+}
+function abbr(d) { return String(d || "").replace(/east coast swing/gi, "E.C. Swing"); }
+function coupleLine(e) {
+  const s = stuById(e.studentId);
+  const name = s ? s.name : "Unknown";
+  const partner = proName(e.proId || (s && s.proId));
+  const lvl = (e && e.level) || (s && s.level) || "";
+  const num = e && e.number != null ? String(e.number).trim() : "";
+  return { name, partner, lvl, num };
+}
+function coupleWho(c) { return c.partner ? c.partner + " & " + c.name : c.name; }
+function coupleLabel(e) {
+  const c = coupleLine(e);
+  const bits = [];
+  if (c.num) bits.push(c.num);
+  bits.push(coupleWho(c));
+  if (c.lvl) bits.push(c.lvl);
+  return bits.join(" · ");
+}
+function renderList() {
+  if (!D || !$("#heatList")) return;
+  $("#heatList").innerHTML = (D.heats || []).map((h) => {
+    const ents = h.entries || [];
+    const people = ents.length ? ents.map((e) => { const c = coupleLine(e); return `<div class="cp">${esc((c.num ? c.num + " · " : "") + coupleWho(c))}</div>`; }).join("") : '<div class="cp">No one yet</div>';
+    const on = !onAwards && h.n === cur;
+    const bits = ["Heat " + h.n + (h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "")];
+    if (h.dance) bits.push(esc(abbr(h.dance)));
+
+    const aws = (D.awards || []).filter((a) => Number(a.afterHeat) === h.n).map((a) => {
+      const aon = onAwards && Number(a.afterHeat) === awAfter;
+      const at = a.time ? " - " + esc(String(a.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
+      return `<div class="awrow${aon ? " cur" : ""}" data-aw="${h.n}"><span>🏆 Awards${at} 🏆</span>${aon ? '<span class="onfl">Now</span>' : ""}</div>`;
+    }).join("");
+    return `<div class="heat${on ? " cur" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>` + aws;
+  }).join("") || `<p class="hint">No heats yet.</p>`;
+}
+function sheetFocused() {
+  const sh = $("#sheet");
+  return sh && sh.contains(document.activeElement);
+}
+function renderSheet(keepFields) {
+  if (openHeat == null || !D) return;
+  const h = (D.heats || []).find((x) => x.n === openHeat);
+  if (!h) { closeSheet(); return; }
+  $("#sheetTitle").textContent = "Heat " + h.n;
+  if (!keepFields || !sheetFocused()) {
+    $("#hDance").value = h.dance || "";
+    $("#hStyle").value = h.style || "";
+    $("#hLevel").value = h.level || "";
+    $("#hTime").value = h.time || "";
+  }
+  const ents = h.entries || [];
+  $("#hCouples").innerHTML = ents.map((e) => {
+    const c = coupleLine(e);
+    const title = (c.num ? c.num + " · " : "") + coupleWho(c);
+    return `<div class="item"><div class="nm">${esc(title)}</div>
+      <div class="meta">${esc(c.lvl || "")}</div>
+      <div class="acts"><button type="button" class="btn danger small" data-rm="${esc(e.studentId)}">Remove</button></div></div>`;
+  }).join("") || `<p class="hint">No one in this heat yet.</p>`;
+  const inHeat = new Set(ents.map((e) => e.studentId));
+  const chosen = $("#hStu").value;
+  const opts = (D.students || []).slice().sort((a, b) => a.name.localeCompare(b.name)).filter((s) => !inHeat.has(s.id));
+  $("#hStu").innerHTML = `<option value="">Choose a student</option>` + opts.map((s) => `<option value="${esc(s.id)}"${s.id === chosen ? " selected" : ""}>${esc(s.name)}</option>`).join("");
+}
+function openSheet(n) {
+  openHeat = n;
+  renderSheet();
+  $("#sheetBg").classList.remove("hidden");
+  document.body.classList.add("sheet-open");
+}
+function closeSheet() {
+  openHeat = null;
+  $("#sheetBg").classList.add("hidden");
+  document.body.classList.remove("sheet-open");
+  setTimeout(autoScroll, 0);
+}
+let lastKey = null, awAfter = null;
+new ResizeObserver(() => document.documentElement.style.setProperty("--tabsH", $("#tabs").getBoundingClientRect().height + "px")).observe($("#tabs"));
+function autoScroll() {
+  if (!D || $("#panelHeats").classList.contains("hidden") || openHeat != null) return;
+  const key = onAwards ? "a" + awAfter : "h" + cur;
+  if (key === lastKey) return;
+  const el = onAwards ? (document.querySelector('#heatList .awrow[data-aw="' + awAfter + '"]') || document.querySelector('#heatList .heat[data-n="' + (awAfter + 1) + '"]')) : document.querySelector('#heatList .heat[data-n="' + cur + '"]');
+  if (!el) return;
+  lastKey = key;
+  const pinH = $("#pinTop").getBoundingClientRect().height + $("#tabs").getBoundingClientRect().height;
+  const y = el.getBoundingClientRect().top + window.scrollY - pinH - 10;
+  window.scrollTo({ top: Math.max(0, y), behavior: lastKey && window.scrollY > 0 ? "smooth" : "auto" });
+}
+async function loadData() {
+  const d = await fetchRetry("/api/data", { headers: { "X-Staff-Pin": pin }, cache: "no-store" }).then((x) => x.json());
+  D = d;
+  if (d.heats) total = d.heats.length;
+  renderList();
+  if (openHeat != null) renderSheet(true);
+  autoScroll();
+}
+async function unlock() {
+  pin = $("#pin").value || pin;
+  const r = await fetchRetry("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, action: "check" }) });
+  if (!r.ok) { $("#err").textContent = "Wrong PIN"; return; }
+  sessionStorage.setItem("pin", pin);
+  await loadData();
+  $("#gate").classList.add("hidden"); $("#app").classList.remove("hidden");
+}
+$("#gate").onsubmit = (e) => { e.preventDefault(); unlock(); return false; };
+$("#prev").onclick = () => send({ action: "prev" });
+$("#next").onclick = () => send({ action: "next" });
+$("#jumpGo").onclick = () => $("#jump").value && send({ heat: $("#jump").value }).then((ok) => ok && ($("#jump").value = ""));
+$("#jump").onkeydown = (e) => { if (e.key === "Enter") $("#jumpGo").click(); };
+$("#annSend").onclick = () => { const t = $("#ann").value.trim(); if (t) send({ announcement: t }).then((ok) => ok && ($("#ann").value = "")); };
+$("#annClear").onclick = () => send({ announcement: "" }).then((ok) => ok && ($("#ann").value = ""));
+$("#heatList").onclick = (e) => { const item = e.target.closest(".heat"); if (item) openSheet(+item.dataset.n); };
+$("#sheetBg").onclick = (e) => { if (e.target === $("#sheetBg")) closeSheet(); };
+$("#sheetClose").onclick = () => closeSheet();
+$("#hSave").onclick = async () => {
+  if (openHeat == null) return;
+  if (await admin({ action: "update-heat", n: openHeat, dance: $("#hDance").value, style: $("#hStyle").value, level: $("#hLevel").value, time: $("#hTime").value })) {
+    toast("Saved"); renderList(); renderSheet();
+  }
+};
+$("#hDance").onkeydown = (e) => { if (e.key === "Enter") $("#hSave").click(); };
+$("#hStyle").onkeydown = (e) => { if (e.key === "Enter") $("#hSave").click(); };
+$("#hLevel").onkeydown = (e) => { if (e.key === "Enter") $("#hSave").click(); };
+$("#hTime").onkeydown = (e) => { if (e.key === "Enter") $("#hSave").click(); };
+function showTab(t) {
+  $("#tabHeats").classList.toggle("act", t === "heats");
+  if (t === "heats") { lastKey = null; setTimeout(autoScroll, 0); }
+  $("#tabAnn").classList.toggle("act", t === "ann");
+  $("#panelHeats").classList.toggle("hidden", t !== "heats");
+  $("#panelAnn").classList.toggle("hidden", t !== "ann");
+  if (t !== "heats") closeSheet();
+}
+$("#tabs").onclick = (e) => { const b = e.target.closest("button[data-t]"); if (b) showTab(b.dataset.t); };
+$("#hAdd").onclick = async () => {
+  const studentId = $("#hStu").value;
+  if (!studentId) { alert("Choose a student"); return; }
+  if (await admin({ action: "add-entry", studentId, heat: openHeat, level: $("#hEntLevel").value, partner: $("#hPartner").value, number: $("#hNumber").value })) {
+    toast("Added"); $("#hStu").value = ""; $("#hEntLevel").value = ""; $("#hPartner").value = ""; $("#hNumber").value = ""; renderList(); renderSheet();
+  }
+};
+$("#hEntLevel").onkeydown = (e) => { if (e.key === "Enter") $("#hAdd").click(); };
+$("#hPartner").onkeydown = (e) => { if (e.key === "Enter") $("#hAdd").click(); };
+$("#hNumber").onkeydown = (e) => { if (e.key === "Enter") $("#hAdd").click(); };
+$("#hCouples").onclick = async (e) => {
+  const btn = e.target.closest("[data-rm]"); if (!btn) return;
+  if (await admin({ action: "remove-entry", studentId: btn.dataset.rm, heat: openHeat })) { toast("Removed"); renderList(); renderSheet(); }
+};
+$("#hJump").onclick = async () => {
+  if (openHeat == null) return;
+  if (await send({ heat: openHeat })) closeSheet();
+};
+Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textContent = st === "on" ? "Live" : st === "re" ? "Reconnecting" : "Offline"; });
+let ver = null;
+Live.onState((st) => {
+  if (st.awards) {
+    $("#num").textContent = "🏆 Awards"; $("#num").classList.add("awards");
+    $("#of").textContent = "after Heat " + st.awards.afterHeat;
+    onAwards = true; awAfter = Number(st.awards.afterHeat);
+  } else {
+    if (st.total) total = st.total;
+    cur = st.currentHeat;
+    $("#num").innerHTML = Number(st.currentHeat) + `<span class="tot">/${Number(total)}</span>`; $("#num").classList.remove("awards");
+    $("#of").textContent = "";
+    onAwards = false;
+  }
+  const anns = (st.announcements || []).slice().reverse();
+  $("#annNow").innerHTML = anns.map((a) => `<div class="annitem"><span>${esc(a.text)}</span><button type="button" class="annrm" data-id="${esc(a.id)}" aria-label="Remove">✕</button></div>`).join("");
+  $("#annNow").querySelectorAll(".annrm").forEach((b) => b.onclick = () => send({ removeAnnouncement: b.dataset.id }));
+  $("#annDot").classList.toggle("on", anns.length > 0);
+  if (ver != null && st.dataVersion !== ver) loadData();
+  else { renderList(); autoScroll(); }
+  ver = st.dataVersion;
+});
+fetch("/api/data").then((r) => r.json()).then((d) => {
+  total = d.heats.length;
+  Live.start();
+});
+if (pin) unlock();
+</script></body></html>
