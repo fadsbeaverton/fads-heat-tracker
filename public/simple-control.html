@@ -70,7 +70,7 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30}
 .hidden{display:none!important}
 body.sheet-open{overflow:hidden}
-body{background:transparent!important}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(/logo-bg.png) center bottom 28px/min(68vw,270px) auto no-repeat;opacity:.1}
+body{background:transparent!important}body::before{content:"";position:fixed;top:calc(var(--wmTop,0px) + 16px);bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;margin:0 auto;width:min(86vw,520px);z-index:-1;pointer-events:none;background:url(/logo-bg.png) center/contain no-repeat;opacity:.1}
 </style></head><body><div class="wrap">
 <div class="top"><span>Practice data · Staff</span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
 <form id="gate" class="gate" onsubmit="return false"><p>Staff PIN</p><input id="pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="staffpin"><button type="submit" class="go" id="go">Unlock</button><div class="err" id="err"></div></form>
@@ -376,4 +376,21 @@ fetch("/api/data").then((r) => r.json()).then((d) => {
   Live.start();
 });
 if (pin) unlock();
-</script></body></html>
+</script><script>
+// Watermark: centered (fixed) between the bottom of the sticky top panel and the bottom of the window.
+(function () {
+  const cands = ["#pinTop", "#tabs", ".top"];
+  let last = null, raf = 0;
+  function sync() {
+    raf = 0;
+    let b = 0;
+    for (const s of cands) { const el = document.querySelector(s); if (el && el.offsetParent !== null) { b = Math.max(0, Math.round(el.getBoundingClientRect().bottom)); break; } }
+    if (b !== last) { last = b; document.documentElement.style.setProperty("--wmTop", b + "px"); }
+  }
+  const q = () => { if (!raf) raf = requestAnimationFrame(sync); };
+  addEventListener("resize", q); addEventListener("scroll", q, { passive: true }); addEventListener("click", () => setTimeout(q, 50));
+  const ro = new ResizeObserver(q); cands.forEach((s) => { const el = document.querySelector(s); if (el) ro.observe(el); });
+  setInterval(q, 1000); q();
+})();
+</script>
+</body></html>
