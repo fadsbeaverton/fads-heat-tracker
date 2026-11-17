@@ -35,6 +35,7 @@ h2{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 .done{font-size:22px;font-weight:700;padding:24px 0}
 .celebrate{text-align:center;padding:36px 8px 30px}.celebrate .cemoji{font-size:64px;line-height:1}.celebrate .ctitle{font-size:32px;font-weight:800;line-height:1.15;margin-top:14px}.celebrate .csub{font-size:18px;color:var(--mut);margin-top:10px}
 .row.past{color:var(--mut)}
+.dayh{font-size:13px;color:var(--ink);font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px;padding-top:4px}.ev-day{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 0}
 #past:not(:empty){margin-bottom:8px}
 #card,.celebrate{scroll-margin-top:calc(10px + var(--annH,0px) + var(--floorH,0px) + 12px)}
 .hidden{display:none!important}
@@ -145,6 +146,10 @@ function awardRow(a) {
   const on = live && live.awards && live.awards.afterHeat === a.afterHeat;
   return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)} 🏆</span></div>`;
 }
+// Multi-day comps: heats carry a day label ("Fri, Dec 4"); single-day comps have none and render exactly as before.
+const sameDay = (h) => !h.day || !live || !live.now || !live.now.day || h.day === live.now.day;
+let rowDay = null;
+const dayHdr = (h) => { if (!h.day || h.day === rowDay) return ""; rowDay = h.day; return `<div class="dayh">${esc(h.day)}</div>`; };
 function heatRow(h, past) {
   const t = h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
   return `<div class="row${past ? " past" : ""}" data-n="${h.n}"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span><span></span></div>`;
@@ -208,7 +213,7 @@ function updateCardInPlace(nx, cur) {
   const d = card.querySelector(".d"); if (d) d.textContent = abbr(nx.dance) + (nx.level ? " · " + nx.level : "");
   const a = card.querySelector(".a"); if (a) a.textContent = k === 0 ? "On the floor now" : k === 1 ? "You're next!" : "";
   let badge = card.querySelector(".s");
-  if (k > 0 && nx.time) {
+  if (k > 0 && nx.time && sameDay(nx)) {
     if (!badge) { const bot = card.querySelector(".bot"); if (bot) bot.insertAdjacentHTML("beforeend", `<div class="s ${schedCls()}">${sched()}</div>`); }
     else { badge.className = "s " + schedCls(); badge.textContent = sched(); }
   } else if (badge) badge.remove();
@@ -233,12 +238,15 @@ function render() {
   const aw = awards.filter((a) => a.afterHeat >= cur);
   const before = aw.filter((a) => !nx || a.afterHeat < nx.n);
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
+  rowDay = null;
+  const pastHtml = pastHeats.map((h) => dayHdr(h) + heatRow(h, true)).join("");
   let nextHtml = before.map(awardRow).join("");
+  if (nx) nextHtml += dayHdr(nx);
   if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>` + later.map(awardRow).join("");
   else {
     const k = nx.n - cur, cls = k === 0 ? "now" : k === 1 ? "next" : k <= 5 ? "deck" : "";
     const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
-    nextHtml += `<div class="card ${cls}" id="card"><div class="tag">${tag}</div><div class="h">Heat ${nx.n}</div><div class="d">${esc(abbr(nx.dance))}${nx.level ? " · " + esc(nx.level) : ""}</div><div class="bot"><div class="a">${k === 0 ? "On the floor now" : k === 1 ? "You're next!" : ""}</div>${k > 0 && nx.time ? `<div class="s ${schedCls()}">${sched()}</div>` : ""}</div></div>`;
+    nextHtml += `<div class="card ${cls}" id="card"><div class="tag">${tag}</div><div class="h">Heat ${nx.n}</div><div class="d">${esc(abbr(nx.dance))}${nx.level ? " · " + esc(nx.level) : ""}</div><div class="bot"><div class="a">${k === 0 ? "On the floor now" : k === 1 ? "You're next!" : ""}</div>${k > 0 && nx.time && sameDay(nx) ? `<div class="s ${schedCls()}">${sched()}</div>` : ""}</div></div>`;
   }
   const focus = nx ? "h-" + nx.n : "done";
   const sig = listSignature(pastHeats, nx, restHeats, before, later);
@@ -250,15 +258,15 @@ function render() {
     let restHtml = "";
     if (!nx) {
       $("#past").innerHTML = "";
-      restHtml = pastHeats.map((h) => heatRow(h, true)).join("");
+      restHtml = pastHtml;
       $("#restH").textContent = "Your heats today";
       $("#restH").classList.toggle("hidden", !pastHeats.length);
     } else {
-      $("#past").innerHTML = pastHeats.map((h) => heatRow(h, true)).join("");
+      $("#past").innerHTML = pastHtml;
       const pending = later.slice();
       for (const h of restHeats) {
         while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
-        restHtml += heatRow(h, false);
+        restHtml += dayHdr(h) + heatRow(h, false);
       }
       restHtml += pending.map(awardRow).join("");
       $("#restH").textContent = "Your upcoming heats";
@@ -276,10 +284,10 @@ function evStatus(ev, i) {
   const nowMin = live && live.clockMin;
   const next = events[i + 1];
   if (live && live.awards) {
-    const on = ev.title === "Awards" && ev.time === live.awards.time;
-    if (on) return "now";
-    const aw = events.find((e) => e.title === "Awards" && e.time === live.awards.time);
-    if (aw) return ev.minute < aw.minute ? "done" : "";
+    const isLive = (e) => e.afterHeat != null ? Number(e.afterHeat) === Number(live.awards.afterHeat) : (e.title === "Awards" && e.time === live.awards.time);
+    if (isLive(ev)) return "now";
+    const ai = events.findIndex(isLive);
+    if (ai >= 0) return i < ai ? "done" : "";
   }
   if (ev.from != null) {
     if (cur >= ev.from && cur <= ev.to) {
@@ -308,9 +316,12 @@ function evStatus(ev, i) {
   return "";
 }
 function renderSched() {
+  let evDay = null;
   $("#schedList").innerHTML = events.map((ev, i) => {
     const st = evStatus(ev, i);
-    return `<div class="ev ${st}"><span class="tm">${esc(ev.time)}</span><span>${esc(ev.title)}</span></div>`;
+    const hd = ev.day && ev.day !== evDay ? `<div class="ev-day">${esc(ev.day)}</div>` : "";
+    if (ev.day) evDay = ev.day;
+    return hd + `<div class="ev ${st}"><span class="tm">${esc(ev.time)}</span><span>${esc(ev.title)}</span></div>`;
   }).join("");
 }
 function openSched() { view = "sched"; show(); }

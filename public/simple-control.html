@@ -45,6 +45,8 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .heat.past,.heat.past .nm,.heat.past .cps,.heat.past .cp,.heat.past .who{color:var(--mut)}
 .awrow{display:flex;justify-content:center;align-items:center;gap:8px;width:fit-content;margin:2px auto 12px;background:#f2f2f2;border:1.5px solid #e2e2e2;border-radius:999px;padding:6px 36px;font-weight:600;font-size:13px;color:#444}.awrow.cur{border-color:var(--ink);background:#fff;color:var(--ink)}.awrow .onfl{font-size:10px}
 .heat .nm{font-weight:700}
+.heats .dayh{color:var(--ink);font-weight:800;margin:18px 0 10px}
+.more{display:block;width:100%;margin:0 0 10px;padding:12px;background:#fff;border:2px dashed var(--line);border-radius:16px;color:var(--mut);font-size:15px;font-weight:700}
 .heat .meta{font-size:14px;color:var(--mut);margin-top:2px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}.heat .hd{display:flex;align-items:baseline;gap:10px}.heat .hd .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.heat .cps{font-size:14px;color:var(--ink);margin-top:4px}.heat .cp{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.45}
 .heat .who{flex:1;min-width:0;font-size:14px;color:var(--mut);line-height:1.35}
 .heat .onfl{color:var(--ink);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;padding-top:2px}
@@ -152,8 +154,11 @@ function toast(msg) {
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1600);
 }
-function proName(id) { return ((D && D.pros || []).find((p) => p.id === id) || {}).name || ""; }
-function stuById(id) { return (D && D.students || []).find((s) => s.id === id) || null; }
+// Lookups are indexed once per data load so big comps (1,000 heats / 3,500 entries) render quickly.
+let idxD = null, proMap = new Map(), stuMap = new Map();
+function ensureIdx() { if (idxD === D) return; idxD = D; proMap = new Map(((D && D.pros) || []).map((p) => [p.id, p])); stuMap = new Map(((D && D.students) || []).map((s) => [s.id, s])); }
+function proName(id) { ensureIdx(); return (proMap.get(id) || {}).name || ""; }
+function stuById(id) { ensureIdx(); return stuMap.get(id) || null; }
 async function send(body) {
   const r = await fetchRetry("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, ...body }) });
   const j = await r.json().catch(() => ({}));
@@ -187,9 +192,27 @@ function coupleLabel(e) {
   if (c.lvl) bits.push(c.lvl);
   return bits.join(" · ");
 }
+// Big comps only render a window of heats around the floor (with buttons to show more); small comps render every heat as before.
+const BIG = 150, WIN_BEFORE = 20, WIN_AFTER = 60;
+let winBefore = WIN_BEFORE, winAfter = WIN_AFTER, listKey = null;
 function renderList() {
   if (!D || !$("#heatList")) return;
-  $("#heatList").innerHTML = (D.heats || []).map((h) => {
+  const all = D.heats || [];
+  const anchor = onAwards ? awAfter : cur;
+  const key = [all.length, cur, onAwards, awAfter, winBefore, winAfter].join("|");
+  if (D === listKey?.d && key === listKey.k) return; // nothing changed (live pings, viewer counts)
+  listKey = { d: D, k: key };
+  let heats = all, hiddenBefore = 0, hiddenAfter = 0;
+  if (all.length > BIG) {
+    const lo = anchor - winBefore, hi = anchor + winAfter;
+    heats = all.filter((h) => h.n >= lo && h.n <= hi);
+    hiddenBefore = all.filter((h) => h.n < lo).length; hiddenAfter = all.filter((h) => h.n > hi).length;
+  }
+  const moreBtn = (dir, n) => n ? `<button type="button" class="more" data-more="${dir}">Show ${Math.min(100, n)} ${dir === "before" ? "earlier" : "later"} heats (${n} hidden)</button>` : "";
+  let dayLbl = null;
+  $("#heatList").innerHTML = moreBtn("before", hiddenBefore) + heats.map((h) => {
+    const dayHd = h.day && h.day !== dayLbl ? `<div class="lbl2 dayh">${esc(h.day)}</div>` : "";
+    if (h.day) dayLbl = h.day;
     const ents = h.entries || [];
     const people = ents.length ? ents.map((e) => { const c = coupleLine(e); return `<div class="cp">${esc((c.num ? c.num + " · " : "") + coupleWho(c))}</div>`; }).join("") : '<div class="cp">No one yet</div>';
     const on = !onAwards && h.n === cur;
@@ -202,8 +225,8 @@ function renderList() {
       const at = a.time ? " - " + esc(String(a.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
       return `<div class="awrow${aon ? " cur" : ""}" data-aw="${h.n}"><span>🏆 Awards${at} 🏆</span>${aon ? '<span class="onfl">Now</span>' : ""}</div>`;
     }).join("");
-    return `<div class="heat${on ? " cur" : past ? " past" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>` + aws;
-  }).join("") || `<p class="hint">No heats yet.</p>`;
+    return dayHd + `<div class="heat${on ? " cur" : past ? " past" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>` + aws;
+  }).join("") + moreBtn("after", hiddenAfter) || `<p class="hint">No heats yet.</p>`;
 }
 function sheetFocused() {
   const sh = $("#sheet");
@@ -282,7 +305,10 @@ $("#jumpGo").onclick = () => $("#jump").value && send({ heat: $("#jump").value }
 $("#jump").onkeydown = (e) => { if (e.key === "Enter") $("#jumpGo").click(); };
 $("#annSend").onclick = () => { const t = $("#ann").value.trim(); if (t) send({ announcement: t }).then((ok) => ok && ($("#ann").value = "")); };
 $("#annClear").onclick = () => send({ announcement: "" }).then((ok) => ok && ($("#ann").value = ""));
-$("#heatList").onclick = (e) => { const item = e.target.closest(".heat"); if (item) openSheet(+item.dataset.n); };
+$("#heatList").onclick = (e) => {
+  const more = e.target.closest("[data-more]");
+  if (more) { const y = window.scrollY, h0 = document.documentElement.scrollHeight; if (more.dataset.more === "before") winBefore += 100; else winAfter += 100; renderList(); if (more.dataset.more === "before") window.scrollTo(0, y + document.documentElement.scrollHeight - h0); return; }
+  const item = e.target.closest(".heat"); if (item) openSheet(+item.dataset.n); };
 $("#sheetBg").onclick = (e) => { if (e.target === $("#sheetBg")) closeSheet(); };
 $("#sheetClose").onclick = () => closeSheet();
 $("#hSave").onclick = async () => {

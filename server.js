@@ -17,7 +17,7 @@ const save = () => fs.writeFile(STATE_FILE, JSON.stringify(state), () => {});
 function publicData() {
   return { comp: DATA.comp, heatMinutes: DATA.heatMinutes, schedule: DATA.schedule,
     events: DATA.events, awards: DATA.awards,
-    heats: DATA.heats.map(({ n, style, dance, level, age, time, session }) => ({ n, style, dance, level, age, time, session })) };
+    heats: DATA.heats.map(({ n, style, dance, level, age, time, session, day }) => ({ n, style, dance, level, age, time, session, day })) };
 }
 let PUBLIC_DATA = publicData();
 let BY_CODE = new Map([...DATA.students.map((s) => [s.code, s]), ...(DATA.pros || []).filter((x) => x.code).map((x) => [x.code, x])]);
@@ -53,20 +53,20 @@ const liveAwards = () => {
 function scheduleOffset() {
   if (state.startedAtMin == null) return 0;
   if (state.awardsAfter != null) {
-    const a = awardAfter(state.awardsAfter), nh = DATA.heats[state.awardsAfter];
+    const a = awardAfter(state.awardsAfter), nh = DATA.heats[state.awardsAfter], ah = DATA.heats[state.awardsAfter - 1];
     if (!a) return 0;
     let off = state.startedAtMin - a.minute;
-    if (nh) off = Math.max(off, nowMin() - nh.minute);
+    if (nh && (!ah || nh.day === ah.day)) off = Math.max(off, nowMin() - nh.minute);
     return Math.round(off);
   }
   const h = DATA.heats[state.currentHeat - 1], nh = DATA.heats[state.currentHeat];
   if (!h) return 0;
   let off = state.startedAtMin - h.minute;
-  if (nh) off = Math.max(off, nowMin() - nh.minute); // floor is overdue for the next heat: falling behind
+  if (nh && nh.day === h.day) off = Math.max(off, nowMin() - nh.minute); // floor is overdue (multi-day comps: the next day's first heat isn't overdue) for the next heat: falling behind
   return Math.round(off);
 }
 const pub = () => { const h = DATA.heats[state.currentHeat - 1] || {};
-  return { currentHeat: state.currentHeat, total: DATA.heats.length, now: { dance: h.dance, style: h.style, level: h.level },
+  return { currentHeat: state.currentHeat, total: DATA.heats.length, now: { dance: h.dance, style: h.style, level: h.level, day: h.day },
     awards: liveAwards(), scheduleOffsetMin: scheduleOffset(), clockMin: Math.round(nowMin()), paceSec: Math.round(pace()), paceLive: (state.intervals || []).length >= 3, announcement: state.announcement, announcedAt: state.announcedAt, announcements: state.announcements || [], updatedAt: state.updatedAt, version: state.version, dataVersion: state.dataVersion || 1, viewers: clients.size }; };
 // Simple brute-force guard for code lookups: max 20 bad codes per IP per 10 minutes.
 const bad = new Map();
@@ -103,7 +103,7 @@ http.createServer(async (req, res) => {
     const heats = DATA.heats.filter((h) => h.entries.some((e) => sIds.has(e.studentId) || pIds.has(e.proId))).map((h) => {
       const e = h.entries.find((x) => sIds.has(x.studentId) || pIds.has(x.proId));
       const st = DATA.students.find((x) => x.id === e.studentId);
-      return { n: h.n, dance: h.dance, style: h.style, level: e.level || (st && st.level) || "", time: h.time };
+      return { n: h.n, dance: h.dance, style: h.style, level: e.level || (st && st.level) || "", time: h.time, day: h.day };
     });
     return json(res, 200, { name: s.name, heats, total: DATA.heats.length });
   }
@@ -145,7 +145,8 @@ http.createServer(async (req, res) => {
     if (state.currentHeat === before + 1 && !beforeAwards && beforeAt) { const sec = (Date.now() - beforeAt) / 1000; if (sec >= 15 && sec <= 480) { state.intervals = [...(state.intervals || []), sec].slice(-20); } }
     if (state.currentHeat !== before || state.awardsAfter !== beforeAwards) {
       state.updatedAt = Date.now();
-      if (DEMO && state.currentHeat === 1 && state.awardsAfter == null) state.anchorShift = DATA.heats[0].minute - clockMin();
+      const ch = DATA.heats[state.currentHeat - 1], ph = DATA.heats[state.currentHeat - 2];
+      if (DEMO && state.awardsAfter == null && (state.currentHeat === 1 || (ch && ch.day && ph && ph.day !== ch.day))) state.anchorShift = ch.minute - clockMin(); // demo: anchor at Heat 1 or the first heat of each day
       state.startedAtMin = nowMin();
     }
     state.version++;
