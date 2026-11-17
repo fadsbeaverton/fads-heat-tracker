@@ -41,7 +41,7 @@ h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 #stuHeats .item{padding:10px 12px}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;font-weight:700}
 </style></head><body><div class="wrap">
-<div class="top"><span>Setup · Staff · <a href="/simple-control">Control</a></span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
+<div class="top"><span>Setup · Staff · <a href="/admin">Control</a></span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
 <form id="gate" class="gate" onsubmit="return false"><p>Staff PIN</p><input id="pin" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="staffpin"><button type="submit" class="go" id="go">Unlock</button><div class="err" id="err"></div></form>
 
 <div id="app" class="hidden">
@@ -182,7 +182,7 @@ async function copyText(s) {
   try { document.execCommand("copy"); toast("Copied"); } catch { toast("Copy failed"); }
   i.remove();
 }
-function linkFor(code) { return location.origin + "/simple?code=" + code; }
+function linkFor(code) { return location.origin + "/competitor?code=" + code; }
 function proName(id) { return ((D.pros || []).find((p) => p.id === id) || {}).name || ""; }
 
 async function admin(body) {

@@ -101,7 +101,7 @@ function render() {
 const staffPin = sessionStorage.getItem("pin") || "";
 function staffGate() {
   document.querySelector(".wrap").innerHTML = `<div style="margin-top:22vh;text-align:center"><h2 style="font-family:Georgia,serif">Full view is staff-only</h2>
-    <p style="color:var(--mut)">Dancers: open the personal link your studio sent you, or <a href="/simple" style="color:var(--gold)">sign in with your code</a>.</p>
+    <p style="color:var(--mut)">Dancers: open the personal link your studio sent you, or <a href="/competitor" style="color:var(--gold)">sign in with your code</a>.</p>
     <input id="sp" type="password" inputmode="numeric" placeholder="Staff PIN" style="max-width:220px;text-align:center;margin:14px auto;display:block">
     <button class="btn pri" id="spGo" style="width:220px">Unlock</button><div id="spErr" style="color:var(--bad);min-height:20px;margin-top:8px"></div></div>`;
   const go = async () => { const v = $("#sp").value; const r = await fetch("/api/control", { method: "POST", body: JSON.stringify({ pin: v, action: "check" }) });

@@ -101,7 +101,7 @@ async function refreshProgram() {
 }
 loadProgram().then(() => { if (view === "sched") renderSched(); else render(); }).catch(() => {});
 const urlCode = new URLSearchParams(location.search).get("code");
-if (urlCode) history.replaceState(null, "", "/simple"); // keep the code out of the address bar / screenshots
+if (urlCode) history.replaceState(null, "", "/competitor"); // keep the code out of the address bar / screenshots
 
 async function signIn(code, fromForm) {
   code = String(code || "").trim().toUpperCase();

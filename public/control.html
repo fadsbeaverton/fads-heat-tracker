@@ -81,7 +81,7 @@ function boot() { fetch("/api/data", { headers: { "X-Staff-Pin": pin } }).then((
   render(); Live.start();
 }); }
 function renderCodes() {
-  const base = location.origin + "/simple?code=";
+  const base = location.origin + "/competitor?code=";
   $("#codeList").innerHTML = D.students.map((s) => `<div class="heat" style="grid-template-columns:1fr auto;cursor:default"><div class="d"><b>${esc(s.name)}</b><small>${base}${s.code}</small></div><div class="st"><b style="font-family:monospace;font-size:16px;letter-spacing:1px">${s.code}</b></div></div>`).join("");
 }
 if (pin) unlock();

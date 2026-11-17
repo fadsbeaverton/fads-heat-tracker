@@ -169,7 +169,7 @@ http.createServer(async (req, res) => {
     return res.end(csv);
   }
   // static
-  const ROUTES = { "/": "/index.html", "/control": "/control.html", "/simple": "/simple.html", "/simple-control": "/simple-control.html", "/simple-setup": "/simple-setup.html" };
+  const ROUTES = { "/": "/index.html", "/control": "/control.html", "/simple": "/simple.html", "/simple-control": "/simple-control.html", "/simple-setup": "/simple-setup.html", "/competitor": "/simple.html", "/admin": "/simple-control.html", "/setup": "/simple-setup.html" };
   let f = ROUTES[p] || p;
   f = path.normalize(path.join(PUB, f));
   if (!f.startsWith(PUB)) { res.writeHead(403); return res.end(); }
