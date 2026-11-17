@@ -33,6 +33,7 @@ h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 .row{display:flex;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid var(--line);font-size:19px}.row span:last-child{color:var(--mut);white-space:nowrap}
 .award{display:flex;justify-content:center;align-items:center;width:fit-content;margin:6px auto 10px;padding:6px 36px;border:1.5px solid #e2e2e2;border-radius:999px;background:#f2f2f2;font-size:13px;font-weight:600;color:#444;white-space:nowrap}.award.now{background:#fff;border-color:var(--ink);color:var(--ink)}
 .done{font-size:22px;font-weight:700;padding:24px 0}
+.celebrate{text-align:center;padding:36px 8px 30px}.celebrate .cemoji{font-size:64px;line-height:1}.celebrate .ctitle{font-size:32px;font-weight:800;line-height:1.15;margin-top:14px}.celebrate .csub{font-size:18px;color:var(--mut);margin-top:10px}
 .hidden{display:none!important}
 #sched{padding-top:8px}
 #sched .link{margin-bottom:18px}
@@ -161,7 +162,7 @@ function render() {
   const before = aw.filter((a) => !nx || a.afterHeat < nx.n);
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
   let nextHtml = before.map(awardRow).join("");
-  if (!nx) nextHtml += `<div class="done">You're all done for today 🎉</div>` + later.map(awardRow).join("");
+  if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>` + later.map(awardRow).join("");
   else {
     const k = nx.n - cur, cls = k === 0 ? "now" : k === 1 ? "next" : k <= 5 ? "deck" : "";
     const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
