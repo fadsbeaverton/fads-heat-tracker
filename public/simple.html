@@ -5,7 +5,7 @@
 <style>
 :root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--deck:#ffd84d;--now:#2ecc71;--next:#ff9f43}
 *{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:520px;margin:0 auto;padding:20px 24px 40px}
+.wrap{max-width:520px;margin:0 auto;padding:20px 24px 88px}
 .top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}
 .dot.on{background:var(--now)}.dot.off{background:#e55}
@@ -29,8 +29,8 @@ input:focus{border-color:var(--ink)}input::placeholder{letter-spacing:.05em;font
 .card.deck{background:var(--deck);border-color:var(--deck)}.card.deck .tag{color:var(--ink)}
 .card.next{background:var(--next);border-color:var(--next);animation:pulse 1s ease-in-out infinite}@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,159,67,.7)}50%{transform:scale(1.03);box-shadow:0 0 0 14px rgba(255,159,67,0)}}@media (prefers-reduced-motion:reduce){.card.next{animation:none}}.card.next .tag{color:var(--ink)}
 .card.now{background:var(--now);border-color:var(--now)}.card.now .tag{color:var(--ink)}
-h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:34px 0 4px}
-.row{display:flex;justify-content:space-between;gap:12px;padding:16px 0;border-bottom:1px solid var(--line);font-size:19px}.row span:last-child{color:var(--mut);white-space:nowrap}
+h2{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:16px}.row span:last-child{color:var(--mut);white-space:nowrap}
 .award{display:flex;justify-content:center;align-items:center;width:fit-content;margin:6px auto 10px;padding:6px 36px;border:1.5px solid #e2e2e2;border-radius:999px;background:#f2f2f2;font-size:13px;font-weight:600;color:#444;white-space:nowrap}.award.now{background:#fff;border-color:var(--ink);color:var(--ink)}
 .done{font-size:22px;font-weight:700;padding:24px 0}
 .celebrate{text-align:center;padding:36px 8px 30px}.celebrate .cemoji{font-size:64px;line-height:1}.celebrate .ctitle{font-size:32px;font-weight:800;line-height:1.15;margin-top:14px}.celebrate .csub{font-size:18px;color:var(--mut);margin-top:10px}
@@ -54,6 +54,8 @@ h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 .ev.done{color:var(--mut)}
 .ev.now{font-weight:700}
 body{background:transparent!important}body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(/logo-bg.png) center bottom 28px/min(68vw,270px) auto no-repeat;opacity:.1}
+.recenter{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:700;letter-spacing:.01em;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
+@media (prefers-reduced-motion:reduce){.recenter{transition:none}}
 </style></head><body><div class="wrap">
 <div class="top" id="top"><span>Practice data</span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span></span></div>
 <div id="banner" class="annstack hidden" role="status"></div>
@@ -78,6 +80,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;ins
   <div id="schedList"></div>
 </div>
 </div>
+<button type="button" id="recenter" class="recenter hidden">Back to my next heat</button>
 <script src="/live.js"></script>
 <script>
 function abbr(d) { return String(d || "").replace(/east coast swing/gi, "E.C. Swing"); }
@@ -89,7 +92,7 @@ const mins = (k) => { const sec = (live && live.paceSec) || 105; const m = Math.
 const away = (k) => k === 1 ? "1 heat away" : k + " heats away";
 const schedCls = () => { const o = (live && live.scheduleOffsetMin) || 0; return Math.abs(o) <= 2 ? "ontime" : o > 0 ? "behind" : "ahead"; };
 const sched = () => { const o = (live && live.scheduleOffsetMin) || 0; if (Math.abs(o) <= 2) return "On time"; const a = Math.abs(o), t = a >= 60 ? Math.floor(a / 60) + " hr " + (a % 60) + " min" : a + " min"; return o > 0 ? t + " behind" : t + " ahead"; };
-let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null, focusKey = null;
+let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null, focusKey = null, listSig = null, recRaf = 0;
 async function loadProgram() {
   const d = await fetch("/api/data", { cache: "no-store" }).then((r) => r.json());
   events = d.events || []; awards = d.awards || [];
@@ -129,10 +132,11 @@ function show() {
   if (onSched) {
     if (!started) { 
 started = true; Live.start(); }
+    hideRecenter();
     renderSched();
     return;
   }
-  if (!me) { $("#code").focus(); return; }
+  if (!me) { hideRecenter(); $("#code").focus(); return; }
   if (!started) { 
 started = true; Live.start(); }
   render();
@@ -143,23 +147,71 @@ function awardRow(a) {
 }
 function heatRow(h, past) {
   const t = h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
-  return `<div class="row${past ? " past" : ""}"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span><span></span></div>`;
+  return `<div class="row${past ? " past" : ""}" data-n="${h.n}"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span><span></span></div>`;
+}
+function stickyCut() {
+  const floor = document.querySelector("#main .floor");
+  const annH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--annH")) || 0;
+  return (floor ? floor.offsetHeight : 0) + 10 + annH + 12;
+}
+function cardInView() {
+  const el = $("#card");
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.bottom > stickyCut() - 2 && r.top < window.innerHeight - 16;
+}
+function hideRecenter() { const b = $("#recenter"); if (b) b.classList.add("hidden"); }
+function syncRecenter() {
+  const btn = $("#recenter");
+  if (!btn) return;
+  const onMain = !!(me && view !== "sched" && !$("#main").classList.contains("hidden"));
+  btn.classList.toggle("hidden", !(onMain && $("#card") && !cardInView()));
+}
+function onScrollOrResize() {
+  if (recRaf) return;
+  recRaf = requestAnimationFrame(() => { recRaf = 0; syncRecenter(); });
+}
+function scrollToCard(smooth) {
+  const el = $("#card");
+  if (!el) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const top = el.getBoundingClientRect().top + window.scrollY - stickyCut();
+  window.scrollTo({ top: Math.max(0, top), behavior: (smooth && !reduce) ? "smooth" : "auto" });
 }
 function scrollToFocus(key) {
   if (key === focusKey) return;
   focusKey = key;
-  const el = $("#card") || $(".celebrate");
-  if (!el) return;
-  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const el = $("#card") || (key === "done" ? $(".celebrate") : null);
+  if (!el) { hideRecenter(); return; }
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const floor = document.querySelector("#main .floor");
-    const annH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--annH")) || 0;
-    const sticky = (floor ? floor.offsetHeight : 0) + 10 + annH + 12;
     const rect = el.getBoundingClientRect();
-    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - 16) return;
-    const top = rect.top + window.scrollY - sticky;
-    window.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+    const sticky = stickyCut();
+    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - 16) { syncRecenter(); return; }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: Math.max(0, rect.top + window.scrollY - sticky), behavior: reduce ? "auto" : "smooth" });
+    syncRecenter();
   }));
+}
+function listSignature(pastHeats, nx, restHeats, before, later) {
+  const row = (h, p) => h.n + ":" + (p ? "p" : "u") + ":" + (h.dance || "") + ":" + (h.time || "") + ":" + (h.level || "");
+  const aw = (a) => "a" + a.afterHeat;
+  return [pastHeats.map((h) => row(h, 1)).join(), nx ? row(nx, 0) : "done", restHeats.map((h) => row(h, 0)).join(), before.map(aw).join(), later.map(aw).join()].join("/");
+}
+function updateCardInPlace(nx, cur) {
+  const card = $("#card");
+  if (!card) return;
+  const k = nx.n - cur, cls = k === 0 ? "now" : k === 1 ? "next" : k <= 5 ? "deck" : "";
+  const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
+  card.className = "card " + cls;
+  const t = card.querySelector(".tag"); if (t) t.textContent = tag;
+  const h = card.querySelector(".h"); if (h) h.textContent = "Heat " + nx.n;
+  const d = card.querySelector(".d"); if (d) d.textContent = abbr(nx.dance) + (nx.level ? " · " + nx.level : "");
+  const a = card.querySelector(".a"); if (a) a.textContent = k === 0 ? "On the floor now" : k === 1 ? "You're next!" : "";
+  let badge = card.querySelector(".s");
+  if (k > 0 && nx.time) {
+    if (!badge) { const bot = card.querySelector(".bot"); if (bot) bot.insertAdjacentHTML("beforeend", `<div class="s ${schedCls()}">${sched()}</div>`); }
+    else { badge.className = "s " + schedCls(); badge.textContent = sched(); }
+  } else if (badge) badge.remove();
 }
 function render() {
   if (!me || view === "sched") return;
@@ -188,26 +240,36 @@ function render() {
     const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
     nextHtml += `<div class="card ${cls}" id="card"><div class="tag">${tag}</div><div class="h">Heat ${nx.n}</div><div class="d">${esc(abbr(nx.dance))}${nx.level ? " · " + esc(nx.level) : ""}</div><div class="bot"><div class="a">${k === 0 ? "On the floor now" : k === 1 ? "You're next!" : ""}</div>${k > 0 && nx.time ? `<div class="s ${schedCls()}">${sched()}</div>` : ""}</div></div>`;
   }
-  $("#next").innerHTML = nextHtml;
-  let restHtml = "";
-  if (!nx) {
-    $("#past").innerHTML = "";
-    restHtml = pastHeats.map((h) => heatRow(h, true)).join("");
-    $("#restH").textContent = "Your heats today";
-    $("#restH").classList.toggle("hidden", !pastHeats.length);
+  const focus = nx ? "h-" + nx.n : "done";
+  const sig = listSignature(pastHeats, nx, restHeats, before, later);
+  if (sig === listSig && ((nx && $("#card")) || (!nx && $(".celebrate")))) {
+    if (nx) updateCardInPlace(nx, cur);
   } else {
-    $("#past").innerHTML = pastHeats.map((h) => heatRow(h, true)).join("");
-    const pending = later.slice();
-    for (const h of restHeats) {
-      while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
-      restHtml += heatRow(h, false);
+    const y = window.scrollY, sameFocus = focus === focusKey;
+    $("#next").innerHTML = nextHtml;
+    let restHtml = "";
+    if (!nx) {
+      $("#past").innerHTML = "";
+      restHtml = pastHeats.map((h) => heatRow(h, true)).join("");
+      $("#restH").textContent = "Your heats today";
+      $("#restH").classList.toggle("hidden", !pastHeats.length);
+    } else {
+      $("#past").innerHTML = pastHeats.map((h) => heatRow(h, true)).join("");
+      const pending = later.slice();
+      for (const h of restHeats) {
+        while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
+        restHtml += heatRow(h, false);
+      }
+      restHtml += pending.map(awardRow).join("");
+      $("#restH").textContent = "Your upcoming heats";
+      $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
     }
-    restHtml += pending.map(awardRow).join("");
-    $("#restH").textContent = "Your upcoming heats";
-    $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
+    $("#rest").innerHTML = restHtml;
+    listSig = sig;
+    if (sameFocus) window.scrollTo(0, y);
   }
-  $("#rest").innerHTML = restHtml;
-  scrollToFocus(nx ? "h-" + nx.n : "done");
+  scrollToFocus(focus);
+  syncRecenter();
 }
 function evStatus(ev, i) {
   const cur = live ? live.currentHeat : 0;
@@ -278,9 +340,12 @@ function renderBanner() {
   }
   lastAnn = top;
 }
+window.addEventListener("scroll", onScrollOrResize, { passive: true });
+window.addEventListener("resize", onScrollOrResize);
+$("#recenter").onclick = () => scrollToCard(true);
 $("#go").onclick = () => { $("#err").textContent = ""; signIn($("#code").value, true); };
 $("#code").onkeydown = (e) => { if (e.key === "Enter") $("#go").click(); };
-$("#out").onclick = () => { localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; focusKey = null; $("#code").value = ""; show(); };
+$("#out").onclick = () => { localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; focusKey = null; listSig = null; hideRecenter(); $("#code").value = ""; show(); };
 $("#showSched").onclick = openSched;
 $("#schedFromSignin").onclick = openSched;
 $("#backSched").onclick = closeSched;
