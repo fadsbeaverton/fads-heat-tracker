@@ -5,14 +5,16 @@
 <style>
 :root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--deck:#ffd84d;--now:#2ecc71;--next:#ff9f43}
 *{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:520px;margin:0 auto;padding:20px 24px 88px}
-.top{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--mut)}
+.wrap{max-width:520px;margin:0 auto;padding:0 24px 88px}
+:root{--topH:calc(28px + env(safe-area-inset-top))}
+.top{display:flex;justify-content:space-between;align-items:flex-start;height:var(--topH);padding-top:calc(6px + env(safe-area-inset-top));font-size:13px;line-height:18px;color:var(--mut);white-space:nowrap;overflow:hidden;position:sticky;top:0;z-index:7;background:#fff}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}
 .dot.on{background:var(--now)}.dot.off{background:#e55}
-.floor{position:sticky;top:calc(10px + var(--annH,0px));z-index:5;background:#fff;box-shadow:0 -40px 0 40px #fff;margin:26px 0 30px;border:2px solid var(--ink);border-radius:22px;padding:22px 24px 24px}
-.floor small{display:block;font-size:14px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.floor b{display:block;font-size:70px;line-height:1.05;font-weight:800;letter-spacing:-.02em;margin-top:4px}.floor.awards b{font-size:52px;letter-spacing:-.03em}
-.floor .d{font-size:24px;font-weight:400;margin-top:6px}.floor .l{font-size:19px;color:var(--mut);margin-top:2px}
+.floor{position:sticky;top:calc(var(--topH) + var(--annH,0px));z-index:5;background:#fff;box-shadow:0 -40px 0 40px #fff;margin:0 0 14px;border:2px solid var(--ink);border-radius:16px;padding:8px 16px 8px}
+.floor .fl1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;height:18px;line-height:18px}
+.floor small{display:block;flex-shrink:0;font-size:12px;line-height:18px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.floor b{display:block;font-size:40px;height:46px;line-height:46px;font-weight:800;letter-spacing:-.02em;margin-top:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.floor.awards b{font-size:34px;letter-spacing:-.02em}
+.floor .d{min-width:0;font-size:15px;font-weight:600;color:var(--ink);line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}.floor .l{font-size:19px;color:var(--mut);margin-top:2px}
 .signin{margin-top:16vh}.signin h1{font-size:30px;margin:0 0 6px}.signin p{color:var(--mut);margin:0 0 22px}
 input{width:100%;font-size:28px;padding:16px 18px;border:2px solid var(--line);border-radius:14px;outline:none;text-align:center;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
 input:focus{border-color:var(--ink)}input::placeholder{letter-spacing:.05em;font-weight:400;font-size:20px;text-transform:none}
@@ -37,11 +39,11 @@ h2{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 .row.past{color:var(--mut)}
 .dayh{font-size:13px;color:var(--ink);font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px;padding-top:4px}.ev-day{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 0}
 #past:not(:empty){margin-bottom:8px}
-#card,.celebrate{scroll-margin-top:calc(10px + var(--annH,0px) + var(--floorH,0px) + 12px)}
+#card,.celebrate{scroll-margin-top:calc(var(--topH) + var(--annH,0px) + var(--floorH,0px) + 12px)}
 .hidden{display:none!important}
 #sched{padding-top:8px}
 #sched .link{margin-bottom:18px}
-.annstack{position:sticky;top:10px;z-index:6;box-shadow:0 -40px 0 40px #fff;background:#fff;margin:16px 0 8px;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+.annstack{position:sticky;top:var(--topH);z-index:6;box-shadow:0 -40px 0 40px #fff;background:#fff;margin:0 0 8px;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
 .banner{position:relative;background:#111;color:#fff;border-radius:16px;padding:14px 46px 14px 16px;overflow-wrap:anywhere;word-wrap:break-word;flex-shrink:0}
 .annstack .more{font-size:12px;color:#888;text-align:center}
 .banner .ann-x{position:absolute;top:8px;right:8px;width:32px;height:32px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:16px;line-height:32px;padding:0;cursor:pointer}
@@ -69,7 +71,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;ins
 </div>
 
 <div id="main" class="hidden">
-  <div class="floor"><small>Now on the floor</small><b id="nowNum">Heat –</b><div class="d" id="nowDance"></div></div>
+  <div class="floor"><div class="fl1"><small>Now on the floor</small><span class="d" id="nowDance"></span></div><b id="nowNum">Heat –</b></div>
   <div class="who"><b id="meName"></b><span class="links"><button class="link" id="showSched">Schedule</button><button class="link" id="out">Not you? Sign out</button></span></div>
   <div id="past"></div>
   <div id="next"></div>
@@ -157,7 +159,8 @@ function heatRow(h, past) {
 function stickyCut() {
   const floor = document.querySelector("#main .floor");
   const annH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--annH")) || 0;
-  return (floor ? floor.offsetHeight : 0) + 10 + annH + 12;
+  const topH = $("#top") ? $("#top").offsetHeight : 0;
+  return (floor ? floor.offsetHeight : 0) + topH + annH + 12;
 }
 function cardInView() {
   const el = $("#card");
@@ -176,8 +179,10 @@ function onScrollOrResize() {
   if (recRaf) return;
   recRaf = requestAnimationFrame(() => { recRaf = 0; syncRecenter(); });
 }
+// Scroll target for the next-heat card: include its day header (multi-day comps) so it isn't hidden under the sticky panel.
+const withDayHdr = (el) => { const p = el && el.previousElementSibling; return p && p.classList.contains("dayh") ? p : el; };
 function scrollToCard(smooth) {
-  const el = $("#card");
+  const el = withDayHdr($("#card"));
   if (!el) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const top = el.getBoundingClientRect().top + window.scrollY - stickyCut();
@@ -186,7 +191,7 @@ function scrollToCard(smooth) {
 function scrollToFocus(key) {
   if (key === focusKey) return;
   focusKey = key;
-  const el = $("#card") || (key === "done" ? $(".celebrate") : null);
+  const el = withDayHdr($("#card")) || (key === "done" ? $(".celebrate") : null);
   if (!el) { hideRecenter(); return; }
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const rect = el.getBoundingClientRect();
@@ -226,7 +231,7 @@ function render() {
     $("#nowNum").closest(".floor").classList.toggle("awards", onAwards);
     if (onAwards) {
       $("#nowNum").textContent = "🏆 Awards";
-      $("#nowDance").textContent = "";
+      $("#nowDance").textContent = "after Heat " + Number(live.awards.afterHeat);
     } else {
       $("#nowNum").textContent = "Heat " + cur;
       $("#nowDance").textContent = live.now && live.now.dance ? abbr(live.now.dance) : "";
@@ -330,7 +335,15 @@ function fmtPosted(ts) {
   const d = new Date(ts); let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, "0");
   const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m + " " + ap;
 }
-const annRO = new ResizeObserver(() => { const el = $("#banner"); const h = el.classList.contains("hidden") ? 0 : el.offsetHeight + 8; document.documentElement.style.setProperty("--annH", h + "px"); });
+let annHPrev = 0;
+const annRO = new ResizeObserver(() => {
+  const el = $("#banner"); const h = el.classList.contains("hidden") ? 0 : el.offsetHeight + 8;
+  document.documentElement.style.setProperty("--annH", h + "px");
+  // The sticky panel grew or shrank: if the dancer was looking at their next heat (no recenter pill), keep it in view below the panel.
+  const wasFocused = $("#recenter").classList.contains("hidden");
+  if (h !== annHPrev && wasFocused && $("#card") && window.scrollY > 0) requestAnimationFrame(() => scrollToCard(false));
+  annHPrev = h;
+});
 const floorEl = document.querySelector("#main .floor");
 const floorRO = new ResizeObserver(() => { document.documentElement.style.setProperty("--floorH", (floorEl ? floorEl.offsetHeight : 0) + "px"); });
 if (floorEl) floorRO.observe(floorEl);
