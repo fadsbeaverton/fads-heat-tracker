@@ -34,6 +34,10 @@ h2{font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em
 .award{display:flex;justify-content:center;align-items:center;width:fit-content;margin:6px auto 10px;padding:6px 36px;border:1.5px solid #e2e2e2;border-radius:999px;background:#f2f2f2;font-size:13px;font-weight:600;color:#444;white-space:nowrap}.award.now{background:#fff;border-color:var(--ink);color:var(--ink)}
 .done{font-size:22px;font-weight:700;padding:24px 0}
 .celebrate{text-align:center;padding:36px 8px 30px}.celebrate .cemoji{font-size:64px;line-height:1}.celebrate .ctitle{font-size:32px;font-weight:800;line-height:1.15;margin-top:14px}.celebrate .csub{font-size:18px;color:var(--mut);margin-top:10px}
+.row.past{color:var(--mut)}
+.row .done-mark{display:inline-flex;align-items:center;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:0 8px;height:20px;border-radius:99px;border:1px solid #d0d0d0;color:var(--mut);background:#fff;flex-shrink:0;white-space:nowrap;box-sizing:content-box}
+#past:not(:empty){margin-bottom:8px}
+#card,.celebrate{scroll-margin-top:calc(10px + var(--annH,0px) + var(--floorH,0px) + 12px)}
 .hidden{display:none!important}
 #sched{padding-top:8px}
 #sched .link{margin-bottom:18px}
@@ -65,6 +69,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;ins
 <div id="main" class="hidden">
   <div class="floor"><small>Now on the floor</small><b id="nowNum">Heat –</b><div class="d" id="nowDance"></div></div>
   <div class="who"><b id="meName"></b><span class="links"><button class="link" id="showSched">Schedule</button><button class="link" id="out">Not you? Sign out</button></span></div>
+  <div id="past"></div>
   <div id="next"></div>
   <h2 id="restH">Your upcoming heats</h2><div id="rest"></div>
 </div>
@@ -85,7 +90,7 @@ const mins = (k) => { const sec = (live && live.paceSec) || 105; const m = Math.
 const away = (k) => k === 1 ? "1 heat away" : k + " heats away";
 const schedCls = () => { const o = (live && live.scheduleOffsetMin) || 0; return Math.abs(o) <= 2 ? "ontime" : o > 0 ? "behind" : "ahead"; };
 const sched = () => { const o = (live && live.scheduleOffsetMin) || 0; if (Math.abs(o) <= 2) return "On time"; const a = Math.abs(o), t = a >= 60 ? Math.floor(a / 60) + " hr " + (a % 60) + " min" : a + " min"; return o > 0 ? t + " behind" : t + " ahead"; };
-let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null;
+let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null, focusKey = null;
 async function loadProgram() {
   const d = await fetch("/api/data", { cache: "no-store" }).then((r) => r.json());
   events = d.events || []; awards = d.awards || [];
@@ -137,9 +142,25 @@ function awardRow(a) {
   const on = live && live.awards && live.awards.afterHeat === a.afterHeat;
   return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)} 🏆</span></div>`;
 }
-function heatRow(h, cur) {
+function heatRow(h, past) {
   const t = h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
-  return `<div class="row"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span><span></span></div>`;
+  return `<div class="row${past ? " past" : ""}"><span>Heat ${h.n}${t}${h.dance ? " · " + esc(abbr(h.dance)) : ""}</span>${past ? '<span class="done-mark">Done</span>' : "<span></span>"}</div>`;
+}
+function scrollToFocus(key) {
+  if (key === focusKey) return;
+  focusKey = key;
+  const el = $("#card") || $(".celebrate");
+  if (!el) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const floor = document.querySelector("#main .floor");
+    const annH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--annH")) || 0;
+    const sticky = (floor ? floor.offsetHeight : 0) + 10 + annH + 12;
+    const rect = el.getBoundingClientRect();
+    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - 16) return;
+    const top = rect.top + window.scrollY - sticky;
+    window.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+  }));
 }
 function render() {
   if (!me || view === "sched") return;
@@ -157,7 +178,7 @@ function render() {
   }
   $("#meName").textContent = me.name;
   const cur = live ? live.currentHeat : 1;
-  const up = me.heats.filter((h) => h.n >= cur), nx = up[0], restHeats = up.slice(1);
+  const pastHeats = me.heats.filter((h) => h.n < cur), up = me.heats.filter((h) => h.n >= cur), nx = up[0], restHeats = up.slice(1);
   const aw = awards.filter((a) => a.afterHeat >= cur);
   const before = aw.filter((a) => !nx || a.afterHeat < nx.n);
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
@@ -170,14 +191,24 @@ function render() {
   }
   $("#next").innerHTML = nextHtml;
   let restHtml = "";
-  const pending = later.slice();
-  for (const h of restHeats) {
-    while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
-    restHtml += heatRow(h, cur);
+  if (!nx) {
+    $("#past").innerHTML = "";
+    restHtml = pastHeats.map((h) => heatRow(h, true)).join("");
+    $("#restH").textContent = "Your heats today";
+    $("#restH").classList.toggle("hidden", !pastHeats.length);
+  } else {
+    $("#past").innerHTML = pastHeats.map((h) => heatRow(h, true)).join("");
+    const pending = later.slice();
+    for (const h of restHeats) {
+      while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
+      restHtml += heatRow(h, false);
+    }
+    restHtml += pending.map(awardRow).join("");
+    $("#restH").textContent = "Your upcoming heats";
+    $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
   }
-  restHtml += pending.map(awardRow).join("");
-  $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
   $("#rest").innerHTML = restHtml;
+  scrollToFocus(nx ? "h-" + nx.n : "done");
 }
 function evStatus(ev, i) {
   const cur = live ? live.currentHeat : 0;
@@ -228,6 +259,9 @@ function fmtPosted(ts) {
   const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m + " " + ap;
 }
 const annRO = new ResizeObserver(() => { const el = $("#banner"); const h = el.classList.contains("hidden") ? 0 : el.offsetHeight + 8; document.documentElement.style.setProperty("--annH", h + "px"); });
+const floorEl = document.querySelector("#main .floor");
+const floorRO = new ResizeObserver(() => { document.documentElement.style.setProperty("--floorH", (floorEl ? floorEl.offsetHeight : 0) + "px"); });
+if (floorEl) floorRO.observe(floorEl);
 function renderBanner() {
   const el = $("#banner");
   let gone = []; try { gone = JSON.parse(localStorage.getItem("annGone") || "[]"); } catch (e) {}
@@ -247,7 +281,7 @@ function renderBanner() {
 }
 $("#go").onclick = () => { $("#err").textContent = ""; signIn($("#code").value, true); };
 $("#code").onkeydown = (e) => { if (e.key === "Enter") $("#go").click(); };
-$("#out").onclick = () => { localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; $("#code").value = ""; show(); };
+$("#out").onclick = () => { localStorage.removeItem("simpleCode"); localStorage.removeItem("simpleMe"); me = null; focusKey = null; $("#code").value = ""; show(); };
 $("#showSched").onclick = openSched;
 $("#schedFromSignin").onclick = openSched;
 $("#backSched").onclick = closeSched;
