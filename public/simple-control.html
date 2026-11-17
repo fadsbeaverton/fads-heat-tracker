@@ -4,8 +4,9 @@
 <style>
 :root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--now:#2ecc71}
 *{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:520px;margin:0 auto;padding:20px 24px 40px;min-height:100vh;display:flex;flex-direction:column}
-.top{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}
+.wrap{max-width:520px;margin:0 auto;padding:0 24px 40px;min-height:100vh;display:flex;flex-direction:column}
+:root{--topH:calc(34px + env(safe-area-inset-top))}
+.top{display:flex;justify-content:space-between;align-items:flex-end;height:var(--topH);padding-bottom:6px;font-size:13px;line-height:18px;color:var(--mut);white-space:nowrap;overflow:hidden;position:sticky;top:0;z-index:7;background:#fff}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}.dot.on{background:var(--now)}.dot.off{background:#e55}
 .gate{margin-top:28vh;text-align:center}.gate p{color:var(--mut);margin:0 0 12px}
 input,select,textarea{font:inherit;font-size:17px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;outline:none;background:#fff;width:100%;-webkit-user-select:text;user-select:text}
@@ -14,20 +15,20 @@ input:focus,select:focus,textarea:focus{border-color:var(--ink)}
 .err{color:#e55;min-height:22px;margin-top:8px}
 button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .go{display:block;margin:14px auto 0;width:200px;padding:16px;background:var(--ink);color:#fff;font-size:19px;font-weight:700}
-#app{flex:1;display:flex;flex-direction:column}.pin{position:sticky;top:var(--tabsH,46px);z-index:5;background:#fff;margin:0 -24px;padding:6px 24px 14px;box-shadow:0 10px 12px -10px rgba(0,0,0,.12)}
-.lbl{text-align:center;margin-top:24px;font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
-.num{text-align:center;font-size:120px;font-weight:800;line-height:1;letter-spacing:-.04em;margin:4px 0 4px}.num.awards{font-size:56px;letter-spacing:-.03em;line-height:1.1;margin:24px 0 8px}
-.of{text-align:center;color:var(--mut);font-size:17px}.of:empty{display:none}.num .tot{font-size:40px;font-weight:600;color:var(--mut);letter-spacing:-.01em;margin-left:4px}
-.tabs{display:flex;gap:0;margin:10px 0 0;border-bottom:2px solid var(--line);position:sticky;top:0;z-index:6;background:#fff}
-.tabs button,.tabs a.tab-link{flex:1;background:none;border:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:10px 6px;font-size:15px;font-weight:700;color:var(--mut);text-align:center;text-decoration:none;display:block;cursor:pointer;white-space:nowrap;font-family:inherit}
+#app{flex:1;display:flex;flex-direction:column}.pin{position:sticky;top:calc(var(--topH) + var(--tabsH,40px));z-index:5;background:#fff;margin:0 -24px;padding:2px 24px 10px;box-shadow:0 10px 12px -10px rgba(0,0,0,.12)}
+.lbl{text-align:center;margin-top:8px;font-size:12px;line-height:16px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.num{text-align:center;font-size:72px;font-weight:800;height:76px;line-height:76px;letter-spacing:-.03em;margin:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.num.awards{font-size:30px;line-height:36px;letter-spacing:-.02em;padding-top:4px}.num .aw2{display:block;font-size:15px;line-height:22px;font-weight:600;color:var(--mut);letter-spacing:0}
+.of{text-align:center;color:var(--mut);font-size:17px}.of:empty{display:none}.num .tot{font-size:26px;font-weight:600;color:var(--mut);letter-spacing:-.01em;margin-left:4px}
+.tabs{display:flex;gap:0;margin:0;border-bottom:2px solid var(--line);position:sticky;top:var(--topH);z-index:6;background:#fff}
+.tabs button,.tabs a.tab-link{flex:1;background:none;border:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:8px 6px;font-size:15px;line-height:20px;font-weight:700;color:var(--mut);text-align:center;text-decoration:none;display:block;cursor:pointer;white-space:nowrap;font-family:inherit}
 .tabs button.act{color:var(--ink);border-bottom-color:var(--ink)}
 .tabdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--ink);margin-left:6px;vertical-align:2px}
 .tabdot.on{display:inline-block}
-.controls{margin-top:8px;padding-top:8px}.btns{display:flex;gap:14px}
-.btns button{flex:1;padding:22px 10px;font-size:24px;font-weight:800}
-#prev{background:var(--line);color:var(--ink)}#next{flex:1.6;background:var(--now);color:var(--ink)}
-.jump{display:flex;gap:10px;justify-content:center;margin-top:14px}
-.jump input{width:130px;font-size:17px;padding:10px;text-align:center}.jump button{background:none;border:2px solid var(--line);padding:10px 18px;font-size:16px;flex:0 0 auto}
+.controls{margin-top:6px;display:flex;gap:8px;align-items:stretch}.btns{display:flex;gap:8px;flex:1;min-width:0}
+.btns button{flex:1;min-width:0;height:54px;padding:0 6px;font-size:19px;font-weight:800;border-radius:16px;white-space:nowrap}
+#prev{background:var(--line);color:var(--ink)}#next{flex:1.45;background:var(--now);color:var(--ink)}
+.jump{display:flex;flex-direction:column;gap:4px;flex:0 0 72px}
+.jump input{width:100%;height:25px;font-size:16px;padding:0 4px;border-width:1.5px;border-radius:8px;text-align:center}.jump button{height:25px;background:none;border:1.5px solid var(--line);border-radius:8px;padding:0;font-size:13px;font-weight:600;flex:0 0 auto}
 .ann{margin-top:20px}
 .ann .lbl2{font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
 .ann textarea{width:100%;font:inherit;font-size:17px;padding:12px 14px;border:2px solid var(--line);border-radius:14px;outline:none;resize:vertical;min-height:60px;text-align:left;line-height:1.35}
@@ -82,7 +83,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;ins
   <div id="panelHeats">
   <div class="pin" id="pinTop">
   <div class="lbl">Now on the floor</div>
-  <div class="num" id="num">–</div><div class="of" id="of"></div>
+  <div class="num" id="num">–</div><div class="of hidden" id="of"></div>
   <div class="controls">
   <div class="btns"><button id="prev">◀ Prev</button><button id="next">Next ▶</button></div>
   <div class="jump"><input id="jump" type="number" inputmode="numeric" placeholder="Heat #"><button id="jumpGo">Jump</button></div>
@@ -277,7 +278,7 @@ function autoScroll() {
   const el = onAwards ? (document.querySelector('#heatList .awrow[data-aw="' + awAfter + '"]') || document.querySelector('#heatList .heat[data-n="' + (awAfter + 1) + '"]')) : document.querySelector('#heatList .heat[data-n="' + cur + '"]');
   if (!el) return;
   lastKey = key;
-  const pinH = $("#pinTop").getBoundingClientRect().height + $("#tabs").getBoundingClientRect().height;
+  const pinH = $("#pinTop").getBoundingClientRect().bottom; // panel bottom (top line + tabs + pinned controls are all sticky)
   const y = el.getBoundingClientRect().top + window.scrollY - pinH - 10;
   window.scrollTo({ top: Math.max(0, y), behavior: lastKey && window.scrollY > 0 ? "smooth" : "auto" });
 }
@@ -352,7 +353,7 @@ Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textCon
 let ver = null;
 Live.onState((st) => {
   if (st.awards) {
-    $("#num").textContent = "🏆 Awards"; $("#num").classList.add("awards");
+    $("#num").innerHTML = `🏆 Awards<span class="aw2">after Heat ${Number(st.awards.afterHeat)}</span>`; $("#num").classList.add("awards");
     $("#of").textContent = "after Heat " + st.awards.afterHeat;
     onAwards = true; awAfter = Number(st.awards.afterHeat);
   } else {
