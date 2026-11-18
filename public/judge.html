@@ -1,0 +1,221 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Judge</title><meta name="theme-color" content="#ffffff">
+<link rel="icon" href="/icon-192.png"><link rel="apple-touch-icon" href="/icon-192.png">
+<style>
+:root{--ink:#111;--mut:#8a8a8a;--line:#ececec;--now:#2ecc71;--topH:calc(28px + env(safe-area-inset-top))}
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:var(--ink);font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:560px;margin:0 auto;padding:0 20px calc(110px + env(safe-area-inset-bottom))}
+.top{display:flex;justify-content:space-between;align-items:flex-start;height:var(--topH);padding-top:calc(6px + env(safe-area-inset-top));font-size:13px;line-height:18px;color:var(--mut);white-space:nowrap;overflow:hidden;position:sticky;top:0;z-index:7;background:#fff}
+.top b{color:var(--ink);font-weight:700}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#ccc;margin-right:6px;vertical-align:1px}.dot.on{background:var(--now)}.dot.off{background:#e55}
+.link{background:none;border:0;color:var(--mut);font-size:13px;text-decoration:underline;padding:0;margin-left:10px;font-family:inherit}
+.signin{margin-top:16vh}.signin h1{font-size:30px;margin:0 0 6px}.signin p{color:var(--mut);margin:0 0 22px}
+#code{width:100%;font-size:28px;padding:16px 18px;border:2px solid var(--line);border-radius:14px;outline:none;text-align:center;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
+#code:focus{border-color:var(--ink)}#code::placeholder{letter-spacing:.05em;font-weight:400;font-size:20px;text-transform:none}
+.go{display:block;width:100%;margin-top:12px;padding:18px;border:0;border-radius:14px;background:var(--ink);color:#fff;font-size:19px;font-weight:700;font-family:inherit}
+.err{color:#e55;min-height:24px;margin-top:10px;text-align:center}
+.pin{position:sticky;top:var(--topH);z-index:5;background:#fff;margin:0 -20px;padding:4px 20px 10px;box-shadow:0 10px 12px -10px rgba(0,0,0,.12)}
+.nav{display:flex;align-items:center;gap:10px;height:64px}
+.nav .arr{flex:0 0 56px;height:56px;border:0;border-radius:16px;background:var(--line);color:var(--ink);font-size:22px;font-weight:800;font-family:inherit}
+.nav .arr:disabled{opacity:.35}
+.hinfo{flex:1;min-width:0;text-align:center}
+.hnum{font-size:32px;font-weight:800;line-height:38px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hsub{font-size:14px;color:var(--mut);line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.floorrow{display:flex;justify-content:center;align-items:center;gap:8px;height:26px;font-size:13px;color:var(--mut)}
+.floorrow .onfl{font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.floorrow button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:2px 12px;font-size:13px;font-weight:700;color:var(--ink);font-family:inherit}
+.status{margin:14px 0 4px;font-size:15px;color:var(--mut);display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:22px}
+.status.done{color:var(--ink);font-weight:700}
+.cat{border:2px solid var(--line);border-radius:16px;padding:10px 12px 12px;margin:12px 0}
+.cat .ch{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.cat .ct{font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:.04em}
+.cat .cc{font-size:14px;color:var(--mut);white-space:nowrap;font-variant-numeric:tabular-nums}
+.cat .cc.ok{color:var(--ink);font-weight:700}
+.cp{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;margin:8px 0 0;padding:8px 12px;border:2px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font-family:inherit;text-align:left}
+.cp .num{flex:0 0 auto;min-width:58px;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.cp .nm{flex:1;min-width:0;font-size:15px;line-height:1.3;color:#444}
+.cp .badge{flex:0 0 46px;height:46px;border-radius:50%;border:2px dashed #d6d6d6;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800}
+.cp.on{border-color:var(--ink)}.cp.on .badge{background:var(--ink);border:2px solid var(--ink);color:#fff}
+.cp:disabled{opacity:1}.locked .cp{border-style:solid;cursor:default}
+.cat .clr{background:none;border:0;color:var(--mut);text-decoration:underline;font-size:14px;padding:6px 0 0;font-family:inherit}
+.solo{color:var(--mut);font-size:15px}
+.none{color:var(--mut);text-align:center;padding:40px 0}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:#fff;box-shadow:0 -8px 14px -10px rgba(0,0,0,.15);padding:10px 20px calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:520px;margin:0 auto;display:flex;gap:10px}
+.bar button{flex:1;height:56px;border:0;border-radius:16px;font-size:18px;font-weight:800;font-family:inherit}
+#submit{background:var(--ink);color:#fff}#submit:disabled{background:#cfcfcf;color:#fff}
+#clearAll{flex:0 0 96px;background:#fff;border:2px solid var(--line);color:var(--ink)}
+.hidden{display:none!important}
+.toast{position:fixed;bottom:calc(86px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30;white-space:nowrap}
+body{background:transparent!important}body::before{content:"";position:fixed;top:calc(var(--topH) + 120px);bottom:90px;left:0;right:0;margin:0 auto;width:min(80vw,460px);z-index:-1;pointer-events:none;background:url(/logo-bg.png) center/contain no-repeat;opacity:.07}
+</style></head><body><div class="wrap">
+<div class="top"><span id="who">Judge</span><span><i class="dot" id="dot"></i><span id="liveTxt">Connecting</span><button class="link hidden" id="out" type="button">Sign out</button></span></div>
+
+<div id="signin" class="signin hidden">
+  <h1>Judge</h1><p>Enter the judge code from the organizer.</p>
+  <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="6-character code">
+  <button class="go" id="go" type="button">Start judging</button><div class="err" id="err"></div>
+</div>
+
+<div id="main" class="hidden">
+  <div class="pin">
+    <div class="nav"><button class="arr" id="prev" type="button" aria-label="Previous heat">◀</button>
+      <div class="hinfo"><div class="hnum" id="hnum">Heat –</div><div class="hsub" id="hsub"></div></div>
+      <button class="arr" id="nextH" type="button" aria-label="Next heat">▶</button></div>
+    <div class="floorrow" id="floorrow"></div>
+  </div>
+  <div class="status" id="status"></div>
+  <div id="cats"></div>
+</div>
+</div>
+<div class="bar hidden" id="bar"><div class="in"><button id="clearAll" type="button">Clear</button><button id="submit" type="button">Submit</button></div></div>
+<script src="/live.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ord = (i) => { const s = ["th", "st", "nd", "rd"], v = i % 100; return i + (s[(v - 20) % 10] || s[v] || s[0]); };
+const fmtT = (ts) => { const d = new Date(ts); let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, "0"); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m + " " + ap; };
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); }
+let code = null, judge = null, H = null, draft = {}, follow = true, floor = 1, total = 0, marksVer = null, busy = false, loadSeq = 0;
+const dKey = () => "jd:" + code + ":" + H.key;           // in-progress marks on this phone
+const sKey = () => "js:" + code;                           // submitted marks kept on this phone (re-sent if the server loses them)
+const readJ = (k, dflt) => { try { return JSON.parse(localStorage.getItem(k)) || dflt; } catch { return dflt; } };
+const urlCode = new URLSearchParams(location.search).get("code");
+if (urlCode) history.replaceState(null, "", "/judge");
+
+async function loadHeat(n, keepScroll) {
+  const seq = ++loadSeq;
+  const r = await fetch("/api/judge/heat?code=" + encodeURIComponent(code) + (n ? "&n=" + n : ""), { cache: "no-store" }).catch(() => null);
+  if (seq !== loadSeq) return false;
+  if (!r) { toast("Can't reach the server"); return false; }
+  if (!r.ok) {
+    if (r.status === 404 && !H) { localStorage.removeItem("judgeCode"); code = null; show(); $("#err").textContent = "That code didn't work."; }
+    else if (r.status === 429) $("#err").textContent = "Too many tries. Wait a few minutes.";
+    return false;
+  }
+  const j = await r.json();
+  judge = j.judge; H = j.heat; total = H.total;
+  draft = readJ(dKey(), null) || (H.mine && !H.mine.submitted ? H.mine.cats : null) || {};
+  if (H.mine && !H.mine.submitted) { const all = readJ(sKey(), {}); if (all[H.key]) { delete all[H.key]; localStorage.setItem(sKey(), JSON.stringify(all)); } }
+  if (H.mine && H.mine.submitted) { const all = readJ(sKey(), {}); all[H.key] = { n: H.n, key: H.key, at: H.mine.at, cats: H.mine.cats }; localStorage.setItem(sKey(), JSON.stringify(all)); }
+  render(); if (!keepScroll) window.scrollTo(0, 0);
+  return true;
+}
+function show() {
+  $("#signin").classList.toggle("hidden", !!code);
+  $("#main").classList.toggle("hidden", !code);
+  $("#out").classList.toggle("hidden", !code);
+  if (!code) { $("#bar").classList.add("hidden"); $("#who").textContent = "Judge"; $("#code").focus(); }
+}
+const contested = () => (H ? H.cats.filter((c) => c.couples.length >= 2) : []);
+const locked = () => !!(H && H.mine && H.mine.submitted);
+function catDone(c) {
+  const m = draft[c.key] || {};
+  return H.round.type === "semi" ? true : (m.places || []).length === c.couples.length;
+}
+function render() {
+  if (!H) return;
+  $("#who").innerHTML = "Judge · <b>" + esc(judge.name) + "</b>";
+  $("#hnum").textContent = "Heat " + H.n;
+  const rnd = H.round.type === "semi" ? "Semi · recall " + H.round.recall : "Final";
+  $("#hsub").textContent = [H.dance, H.style, rnd].filter(Boolean).join(" · ");
+  $("#prev").disabled = H.n <= 1; $("#nextH").disabled = H.n >= total;
+  $("#floorrow").innerHTML = H.n === floor ? '<span class="onfl">● On the floor</span>' : `<span>Floor: Heat ${floor}</span><button type="button" id="toFloor">Go to floor</button>`;
+  const lk = locked(), cs = contested();
+  $("#status").className = "status" + (lk ? " done" : "");
+  $("#status").innerHTML = !cs.length ? "" : lk ? `<span>✓ Submitted ${esc(fmtT(H.mine.at))}</span><span style="font-weight:400;color:var(--mut);font-size:13px">Locked · staff can unlock</span>`
+    : H.round.type === "semi" ? "<span>Tap couples to recall</span>" : "<span>Tap couples in order: 1st, 2nd, 3rd…</span>";
+  $("#cats").className = lk ? "locked" : "";
+  if (!H.cats.length) { $("#cats").innerHTML = '<div class="none">No couples in this heat.</div>'; }
+  else $("#cats").innerHTML = H.cats.map((c, ci) => {
+    const who = (x) => esc([x.lead, x.follow].filter(Boolean).join(" & "));
+    if (c.couples.length < 2) return `<div class="cat"><div class="ch"><span class="ct">${esc(c.key)}</span><span class="cc">1 couple</span></div><div class="solo">#${esc(c.couples[0].num)} ${who(c.couples[0])} · uncontested (1st)</div></div>`;
+    const m = (lk ? (H.mine.cats || {})[c.key] : draft[c.key]) || {};
+    let cc, rows;
+    if (H.round.type === "semi") {
+      const rec = m.recalls || [], tgt = Math.min(H.round.recall, c.couples.length);
+      cc = `<span class="cc${rec.length === tgt ? " ok" : ""}">${rec.length} / ${tgt} recalls</span>`;
+      rows = c.couples.map((x) => { const on = rec.includes(x.num); return `<button type="button" class="cp${on ? " on" : ""}" data-c="${ci}" data-num="${esc(x.num)}"${lk ? " disabled" : ""}><span class="num">${esc(x.num)}</span><span class="nm">${who(x)}</span><span class="badge">${on ? "✓" : ""}</span></button>`; }).join("");
+    } else {
+      const pl = m.places || [];
+      cc = `<span class="cc${pl.length === c.couples.length ? " ok" : ""}">${pl.length} of ${c.couples.length} placed</span>`;
+      rows = c.couples.map((x) => { const i = pl.indexOf(x.num); return `<button type="button" class="cp${i >= 0 ? " on" : ""}" data-c="${ci}" data-num="${esc(x.num)}"${lk ? " disabled" : ""}><span class="num">${esc(x.num)}</span><span class="nm">${who(x)}</span><span class="badge">${i >= 0 ? ord(i + 1) : ""}</span></button>`; }).join("");
+    }
+    const clr = !lk && ((m.places || m.recalls || []).length) ? `<button type="button" class="clr" data-clr="${ci}">Clear ${esc(c.key)}</button>` : "";
+    return `<div class="cat"><div class="ch"><span class="ct">${esc(c.key)}</span>${cc}</div>${rows}${clr}</div>`;
+  }).join("");
+  const needs = cs.length > 0 && !lk;
+  $("#bar").classList.toggle("hidden", !needs);
+  $("#submit").disabled = !needs || !cs.every(catDone) || busy;
+  $("#clearAll").disabled = !needs;
+}
+function saveDraft() { localStorage.setItem(dKey(), JSON.stringify(draft)); }
+$("#cats").onclick = (e) => {
+  if (!H || locked()) return;
+  const clr = e.target.closest("[data-clr]");
+  if (clr) { delete draft[H.cats[+clr.dataset.clr].key]; saveDraft(); return render(); }
+  const b = e.target.closest(".cp"); if (!b) return;
+  const c = H.cats[+b.dataset.c], num = b.dataset.num;
+  const m = draft[c.key] = draft[c.key] || {};
+  if (H.round.type === "semi") {
+    const rec = m.recalls = m.recalls || [];
+    const i = rec.indexOf(num); if (i >= 0) rec.splice(i, 1); else rec.push(num);
+  } else {
+    const pl = m.places = m.places || [];
+    const i = pl.indexOf(num);
+    if (i >= 0) pl.splice(i, 1); else pl.push(num); // tap a placed couple to take it out; later places move up
+    if (pl.length === c.couples.length - 1) { const last = c.couples.find((x) => !pl.includes(x.num)); if (last && i < 0) pl.push(last.num); } // last couple is placed automatically
+  }
+  saveDraft(); render();
+};
+$("#clearAll").onclick = () => { if (!H || locked()) return; if (Object.keys(draft).length && !confirm("Clear your marks for this heat?")) return; draft = {}; saveDraft(); render(); };
+$("#submit").onclick = async () => {
+  if (!H || locked() || busy) return;
+  if (H.round.type === "semi") {
+    const off = contested().filter((c) => ((draft[c.key] || {}).recalls || []).length !== Math.min(H.round.recall, c.couples.length));
+    if (off.length && !confirm(off.map((c) => `${c.key}: ${((draft[c.key] || {}).recalls || []).length} of ${Math.min(H.round.recall, c.couples.length)} recalls`).join("\n") + "\n\nSubmit anyway?")) return;
+  }
+  busy = true; render();
+  const r = await fetch("/api/judge/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, n: H.n, key: H.key, cats: draft }) }).catch(() => null);
+  busy = false;
+  const j = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !r.ok) { toast(j.error || "Couldn't submit. Try again."); if (r && r.status === 409) loadHeat(H.n, true); else render(); return; }
+  localStorage.removeItem(dKey());
+  H = j.heat; const all = readJ(sKey(), {}); all[H.key] = { n: H.n, key: H.key, at: H.mine.at, cats: H.mine.cats }; localStorage.setItem(sKey(), JSON.stringify(all));
+  toast("Submitted"); render();
+};
+$("#prev").onclick = () => { if (H && H.n > 1) { follow = false; loadHeat(H.n - 1); } };
+$("#nextH").onclick = () => { if (H && H.n < total) { follow = H.n + 1 === floor; loadHeat(H.n + 1); } };
+$("#floorrow").onclick = (e) => { if (e.target.id === "toFloor") { follow = true; loadHeat(floor); } };
+async function syncSubmitted() {
+  const items = Object.values(readJ(sKey(), {}));
+  if (!items.length) return;
+  const r = await fetch("/api/judge/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, items }) }).catch(() => null);
+  if (r && r.ok) { const j = await r.json(); if (j.restored) toast("Re-sent " + j.restored + " saved heat" + (j.restored === 1 ? "" : "s")); }
+}
+async function signIn(c) {
+  code = String(c || "").trim().toUpperCase(); $("#err").textContent = "";
+  if (!code) return;
+  const ok = await loadHeat(null);
+  if (!ok) { if (!H) { code = null; show(); } return; }
+  localStorage.setItem("judgeCode", code); show(); syncSubmitted();
+  Live.start();
+}
+Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textContent = st === "on" ? "Live" : st === "re" ? "Reconnecting" : "Offline"; if (st === "on" && code) syncSubmitted(); });
+Live.onState((st) => {
+  floor = st.currentHeat; total = st.total || total;
+  if (!code || !H) return;
+  const mv = st.marksVersion;
+  if (follow && H.n !== floor) { const busyHere = !locked() && Object.keys(draft).some((k) => ((draft[k].places || draft[k].recalls || []).length)); if (!busyHere) loadHeat(floor); else { follow = false; render(); } } // mid-marking: stay put, offer "Go to floor"
+  else if (marksVer != null && mv !== marksVer) loadHeat(H.n, true); // staff unlocked / data changed
+  else render();
+  marksVer = mv;
+});
+$("#go").onclick = () => signIn($("#code").value);
+$("#code").onkeydown = (e) => { if (e.key === "Enter") $("#go").click(); };
+$("#out").onclick = () => { if (!confirm("Sign out of judging on this phone?")) return; localStorage.removeItem("judgeCode"); code = null; H = null; show(); };
+const saved = urlCode || localStorage.getItem("judgeCode");
+if (saved) signIn(saved); else show();
+</script>
+</body></html>

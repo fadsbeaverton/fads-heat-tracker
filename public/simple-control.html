@@ -20,7 +20,7 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .num{text-align:center;font-size:72px;font-weight:800;height:76px;line-height:76px;letter-spacing:-.03em;margin:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.num.awards{font-size:30px;line-height:36px;letter-spacing:-.02em;padding-top:4px}.num .aw2{display:block;font-size:15px;line-height:22px;font-weight:600;color:var(--mut);letter-spacing:0}
 .of{text-align:center;color:var(--mut);font-size:17px}.of:empty{display:none}.num .tot{font-size:26px;font-weight:600;color:var(--mut);letter-spacing:-.01em;margin-left:4px}
 .tabs{display:flex;gap:0;margin:0;border-bottom:2px solid var(--line);position:sticky;top:var(--topH);z-index:6;background:#fff}
-.tabs button,.tabs a.tab-link{flex:1;background:none;border:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:8px 6px;font-size:15px;line-height:20px;font-weight:700;color:var(--mut);text-align:center;text-decoration:none;display:block;cursor:pointer;white-space:nowrap;font-family:inherit}
+.tabs button,.tabs a.tab-link{flex:1 1 auto;background:none;border:0;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-2px;padding:8px 4px;font-size:14px;line-height:20px;font-weight:700;color:var(--mut);text-align:center;text-decoration:none;display:block;cursor:pointer;white-space:nowrap;font-family:inherit}
 .tabs button.act{color:var(--ink);border-bottom-color:var(--ink)}
 .tabdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--ink);margin-left:6px;vertical-align:2px}
 .tabdot.on{display:inline-block}
@@ -70,6 +70,28 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30}
 .recenter{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:700;letter-spacing:.01em;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
 #heatList{overflow-anchor:none}
+.res{margin-top:12px}
+.rnav{display:flex;align-items:center;gap:8px}
+.rnav button{flex:0 0 48px;height:48px;border:0;border-radius:14px;background:var(--line);font-size:18px;font-weight:800;color:var(--ink)}
+.rnav .ri{flex:1;min-width:0;text-align:center}.rnav .rh{font-size:24px;font-weight:800;line-height:30px;font-variant-numeric:tabular-nums}.rnav .rs{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rfl{text-align:center;font-size:13px;color:var(--mut);margin:6px 0 2px;min-height:24px}.rfl button{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:2px 12px;font-size:13px;font-weight:700}
+.jst{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}
+.jchip{display:flex;align-items:center;gap:6px;min-width:0;border:1.5px solid var(--line);border-radius:12px;padding:4px 8px;font-size:13px;color:var(--mut);height:34px}.jchip .jn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jchip.ok{border-color:var(--ink);color:var(--ink);font-weight:700}
+.jchip button{border:0;background:#f2f2f2;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;color:var(--ink)}
+.wait{font-size:15px;margin:8px 0}.wait.ok{font-weight:700}
+.rcat{border:2px solid var(--line);border-radius:16px;padding:10px 12px;margin:10px 0}
+.rcat .ct{font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}
+.rcat .ct span:last-child{font-weight:600;color:var(--mut);text-transform:none;letter-spacing:0}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.mk{border-collapse:collapse;font-size:14px;width:100%;font-variant-numeric:tabular-nums}
+table.mk th,table.mk td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+table.mk th{font-size:12px;color:var(--mut);font-weight:700}
+table.mk td.cn{text-align:left;font-weight:800}table.mk td.cn small{display:block;font-weight:400;color:var(--mut);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+table.mk td.pl{font-weight:800;font-size:16px}table.mk tr.rec td.pl{color:var(--ink)}table.mk tr.tie td{background:#f6f6f6}
+.rnote{font-size:13px;color:var(--mut);margin-top:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--ink)}.chips button.ok{border-color:var(--ink)}
+.bk{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.bk a,.bk label{flex:1;text-align:center;padding:12px 10px;border:2px solid var(--line);border-radius:14px;font-size:15px;font-weight:700;color:var(--ink);text-decoration:none;cursor:pointer;background:#fff}
 .hidden{display:none!important}
 body.sheet-open{overflow:hidden}
 body{background:transparent!important}body::before{content:"";position:fixed;top:calc(var(--wmTop,0px) + 16px);bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;margin:0 auto;width:min(86vw,520px);z-index:-1;pointer-events:none;background:url(/logo-bg.png) center/contain no-repeat;opacity:.1}
@@ -80,6 +102,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
   <div class="tabs" id="tabs">
     <button type="button" id="tabHeats" class="act" data-t="heats">Heats</button>
     <button type="button" id="tabAnn" data-t="ann">Announcements<i class="tabdot" id="annDot"></i></button>
+    <button type="button" id="tabRes" data-t="res">Results</button>
     <a class="tab-link" id="tabSetup" href="/setup">Setup</a>
   </div>
   <div id="panelHeats">
@@ -95,6 +118,16 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
     <div class="lbl2">Heats</div>
     <div id="heatList"></div>
   </div>
+  </div>
+  <div id="panelRes" class="res hidden">
+    <div class="rnav"><button type="button" id="rPrev" aria-label="Previous heat">◀</button><div class="ri"><div class="rh" id="rHeat">Heat –</div><div class="rs" id="rSub"></div></div><button type="button" id="rNext" aria-label="Next heat">▶</button></div>
+    <div class="rfl" id="rFloor"></div>
+    <div id="rBody"></div>
+    <div class="ann" style="margin-top:22px"><div class="lbl2">Heats with marks</div><div class="chips" id="rChips"></div></div>
+    <div class="ann" style="margin-top:22px"><div class="lbl2">Backup</div>
+      <div class="hint">Marks live on the server only until it sleeps or redeploys. Download a backup after each session; judges’ phones also re-send their own marks when they reconnect.</div>
+      <div class="bk"><a id="rCsv" href="#">Download CSV</a><a id="rJson" href="#">Download JSON</a><label>Restore JSON<input type="file" id="rRestore" accept=".json,application/json" class="hidden"></label></div>
+    </div>
   </div>
   <div id="panelAnn" class="ann hidden">
     <div class="lbl2">Announcement</div>
@@ -378,6 +411,9 @@ function showTab(t) {
   $("#tabAnn").classList.toggle("act", t === "ann");
   $("#panelHeats").classList.toggle("hidden", t !== "heats");
   $("#panelAnn").classList.toggle("hidden", t !== "ann");
+  $("#tabRes").classList.toggle("act", t === "res");
+  $("#panelRes").classList.toggle("hidden", t !== "res");
+  if (t === "res") Results.open();
   if (t !== "heats") closeSheet();
   syncPill();
 }
@@ -428,6 +464,84 @@ fetch("/api/data").then((r) => r.json()).then((d) => {
 });
 if (pin) unlock();
 </script><script>
+// Results (staff): each judge's marks, who is still outstanding, and placements (skating system) or recall totals.
+const Results = (function () {
+  let viewN = null, follow = true, mv = null, floorN = 1, lastSig = "";
+  const ord = (p) => { if (p == null) return "–"; if (p % 1) return String(p); const s = ["th", "st", "nd", "rd"], v = p % 100; return p + (s[(v - 20) % 10] || s[v] || s[0]); };
+  const visible = () => !$("#panelRes").classList.contains("hidden");
+  async function get(url) { const r = await fetch(url, { headers: { "X-Staff-Pin": pin }, cache: "no-store" }); if (r.status === 401) { sessionStorage.removeItem("pin"); location.reload(); } return r.ok ? r.json() : null; }
+  async function load() {
+    if (!visible()) return;
+    const n = follow ? floorN : viewN;
+    const [r, sum] = await Promise.all([get("/api/results?n=" + n), get("/api/results/summary")]);
+    if (!r) return;
+    viewN = r.n; render(r, sum);
+  }
+  function render(r, sum) {
+    const jn = new Map(r.judges.map((j, i) => [j.id, { ...j, ab: "J" + (i + 1) }]));
+    $("#rHeat").textContent = "Heat " + r.n;
+    $("#rSub").textContent = [r.dance, r.style, r.round.type === "semi" ? "Semifinal · recall " + r.round.recall : "Final"].filter(Boolean).join(" · ");
+    $("#rPrev").disabled = r.n <= 1; $("#rNext").disabled = r.n >= total;
+    $("#rFloor").innerHTML = r.n === floorN ? "On the floor now" : `Floor is on Heat ${floorN} <button type="button" id="rToFloor">Go to floor</button>`;
+    let h = "";
+    if (!r.judges.length) h += '<p class="hint">No judges yet. Add them in Setup → Judges.</p>';
+    else if (!r.contested) h += '<p class="hint">No category in this heat has more than one couple, so no marks are needed.</p>';
+    else {
+      h += r.outstanding.length ? `<div class="wait">Waiting on ${r.outstanding.length} of ${r.judges.length}: ${r.outstanding.map(esc).join(", ")}</div>` : `<div class="wait ok">✓ All ${r.judges.length} judges submitted</div>`;
+      h += '<div class="jst">' + r.judges.map((j, i) => `<span class="jchip${j.submitted ? " ok" : ""}"><span class="jn">J${i + 1} ${esc(j.name)}${j.submitted ? " ✓" : ""}</span>${j.submitted ? `<button type="button" data-unlock="${esc(j.id)}">Unlock</button>` : ""}</span>`).join("") + "</div>";
+    }
+    for (const c of r.cats) {
+      const who = (x) => esc([x.lead, x.follow].filter(Boolean).join(" & "));
+      if (!c.contested) { h += `<div class="rcat"><div class="ct"><span>${esc(c.key)}</span><span>uncontested</span></div><div class="rnote">#${esc(c.couples[0].num)} ${who(c.couples[0])} · 1st</div></div>`; continue; }
+      const jids = Object.keys(c.marks || {});
+      const byNum = new Map(c.couples.map((x) => [x.num, x]));
+      const head = `<tr><th style="text-align:left">#</th>${jids.map((id) => `<th title="${esc((jn.get(id) || {}).name || id)}">${esc((jn.get(id) || {}).ab || id)}</th>`).join("")}<th>${c.recall ? "Total" : "Place"}</th></tr>`;
+      let rows = "";
+      if (c.recall) {
+        rows = c.recall.rows.map((x) => `<tr class="${x.recalled ? "rec" : ""}${x.tieAtCut ? " tie" : ""}"><td class="cn">${esc(x.num)}<small>${who(byNum.get(x.num) || {})}</small></td>${jids.map((id) => `<td>${(c.marks[id] || []).includes(x.num) ? "X" : ""}</td>`).join("")}<td class="pl">${x.marks}${x.recalled ? " ✓" : x.tieAtCut ? " =" : ""}</td></tr>`).join("");
+      } else {
+        rows = (c.result || []).map((x) => `<tr><td class="cn">${esc(x.num)}<small>${who(byNum.get(x.num) || {})}</small></td>${jids.map((id) => { const i = (c.marks[id] || []).indexOf(x.num); return `<td>${i >= 0 ? i + 1 : ""}</td>`; }).join("")}<td class="pl" title="${esc(x.detail || "")}">${jids.length ? ord(x.place) : "–"}</td></tr>`).join("");
+      }
+      const note = !jids.length ? "No marks yet." : c.recall ? (c.recall.tie ? `Tie at the cutoff for ${c.recall.target} recalls (${c.recall.cutMarks} marks). Decide who goes through.` : `Top ${c.recall.target} recalled.`) + (r.outstanding.length ? " Provisional." : "") : (r.outstanding.length ? "Provisional: " + jids.length + " of " + r.judges.length + " judges. " : "") + "Skating system (rules 5–8).";
+      h += `<div class="rcat"><div class="ct"><span>${esc(c.key)}</span><span>${c.couples.length} couples</span></div><div class="tw"><table class="mk">${head}${rows}</table></div><div class="rnote">${esc(note)}</div></div>`;
+    }
+    const sig = JSON.stringify(r) + JSON.stringify(sum);
+    if (sig === lastSig) return; lastSig = sig;
+    $("#rBody").innerHTML = h;
+    const rows = (sum && sum.heats) || [];
+    $("#rChips").innerHTML = rows.length ? rows.map((x) => `<button type="button" data-n="${x.n}" class="${x.submitted >= x.of && x.of ? "ok" : ""}">${x.n}${x.round && x.round.type === "semi" ? " semi" : ""} · ${x.submitted}/${x.of}${x.current ? "" : " (old round)"}</button>`).join("") : '<span class="hint">None yet.</span>';
+  }
+  const go = (n) => { follow = n === floorN; viewN = n; lastSig = ""; load(); };
+  $("#rPrev").onclick = () => viewN > 1 && go(viewN - 1);
+  $("#rNext").onclick = () => viewN < total && go(viewN + 1);
+  $("#rFloor").onclick = (e) => { if (e.target.id === "rToFloor") go(floorN); };
+  $("#rChips").onclick = (e) => { const b = e.target.closest("[data-n]"); if (b) go(+b.dataset.n); };
+  $("#rBody").onclick = async (e) => {
+    const b = e.target.closest("[data-unlock]"); if (!b) return;
+    if (!confirm("Unlock this judge's marks for Heat " + viewN + "? They can change them and submit again.")) return;
+    const r = await get("/api/results?n=" + viewN); if (!r) return;
+    const x = await fetch("/api/results/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, action: "unlock", key: r.key, judgeId: b.dataset.unlock }) });
+    toast(x.ok ? "Unlocked" : "Couldn't unlock"); lastSig = ""; load();
+  };
+  $("#rCsv").onclick = (e) => { e.preventDefault(); location.href = "/api/results/export?format=csv&pin=" + encodeURIComponent(pin); };
+  $("#rJson").onclick = (e) => { e.preventDefault(); location.href = "/api/results/export?format=json&pin=" + encodeURIComponent(pin); };
+  $("#rRestore").onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    let data; try { data = JSON.parse(await f.text()); } catch { alert("That isn't a marks backup (.json)."); return; }
+    const x = await fetch("/api/results/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin, action: "restore", marks: data }) });
+    const j = await x.json().catch(() => ({})); toast(x.ok ? "Restored " + (j.restored || 0) + " judge marks" : (j.error || "Restore failed")); e.target.value = ""; lastSig = ""; load();
+  };
+  Live.onState((st) => {
+    const fl = st.awards ? st.awards.afterHeat : st.currentHeat;
+    const moved = fl !== floorN; floorN = fl;
+    if (!visible()) { mv = st.marksVersion; return; }
+    if ((moved && follow) || st.marksVersion !== mv) { mv = st.marksVersion; load(); }
+    else if (moved) { lastSig = ""; load(); }
+  });
+  return { open() { lastSig = ""; load(); } };
+})();
+</script>
+<script>
 // Watermark: centered (fixed) between the bottom of the sticky top panel and the bottom of the window.
 (function () {
   const cands = ["#pinTop", "#tabs", ".top"];

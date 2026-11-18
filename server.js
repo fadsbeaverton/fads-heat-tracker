@@ -1,6 +1,7 @@
 // Ballroom live-heat server: zero dependencies, Server-Sent Events for live push.
 const http = require("http"), fs = require("fs"), path = require("path");
 const store = require("./comp-store");
+const judging = require("./judging");
 let DATA = store.load();
 const PORT = Number(process.env.PORT || 8787);
 const PIN = String(process.env.STAFF_PIN || "2468");
@@ -12,6 +13,38 @@ try { state = { ...state, ...JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) }; 
 if (state.dataVersion == null) state.dataVersion = 1;
 if (!Array.isArray(state.announcements)) state.announcements = state.announcement ? [{ id: String(state.announcedAt || Date.now()), text: state.announcement, at: state.announcedAt || Date.now() }] : [];
 const save = () => fs.writeFile(STATE_FILE, JSON.stringify(state), () => {});
+// Judge marks: { "<heat>:<final|semi>": { n, round, judges: { <judgeId>: { submitted, at, cats: { <category>: { places: [nums] } | { recalls: [nums] } } } } } }
+// Kept in marks.json next to state.json. Like state.json this is wiped when a free Render instance sleeps or redeploys,
+// so staff can download a backup and judges' phones re-send their own submitted marks when they reconnect.
+const MARKS_FILE = path.join(__dirname, "marks.json");
+let MARKS = {};
+try { MARKS = JSON.parse(fs.readFileSync(MARKS_FILE, "utf8")) || {}; } catch {}
+const saveMarks = () => { state.marksVersion = (state.marksVersion || 0) + 1; fs.writeFile(MARKS_FILE, JSON.stringify(MARKS), () => {}); };
+const judgeByCode = (code) => (DATA.judges || []).find((j) => j.code === String(code || "").trim().toUpperCase()) || null;
+const heatN = (n) => DATA.heats.find((h) => h.n === parseInt(n, 10)) || null;
+// Validate a judge's marks against the heat's categories; returns cleaned cats or throws.
+function cleanMarks(h, cats, final) {
+  const round = judging.roundOf(h), out = {};
+  for (const c of judging.categories(DATA, h)) {
+    if (c.couples.length < 2) continue;
+    const nums = c.couples.map((x) => x.num), m = (cats || {})[c.key] || {};
+    if (round.type === "semi") {
+      const rec = [...new Set((m.recalls || []).map(String))].filter((x) => nums.includes(x));
+      out[c.key] = { recalls: rec };
+    } else {
+      const pl = [...new Set((m.places || []).map(String))].filter((x) => nums.includes(x));
+      if (final && pl.length !== nums.length) throw new Error(`Place every couple in ${c.key} (${pl.length} of ${nums.length})`);
+      out[c.key] = { places: pl };
+    }
+  }
+  return out;
+}
+function judgeHeat(j, h) {
+  const rec = MARKS[judging.roundKey(h)];
+  const mine = rec && rec.judges && rec.judges[j.id];
+  return { n: h.n, dance: h.dance, style: h.style, time: h.time, day: h.day, round: judging.roundOf(h), key: judging.roundKey(h), total: DATA.heats.length,
+    cats: judging.categories(DATA, h), mine: mine ? { submitted: !!mine.submitted, at: mine.at, cats: mine.cats } : null };
+}
 
 // Public data: the heat program only (no students, no entries, no codes). Full data needs the staff PIN.
 function publicData() {
@@ -67,7 +100,7 @@ function scheduleOffset() {
 }
 const pub = () => { const h = DATA.heats[state.currentHeat - 1] || {};
   return { currentHeat: state.currentHeat, total: DATA.heats.length, now: { dance: h.dance, style: h.style, level: h.level, day: h.day },
-    awards: liveAwards(), scheduleOffsetMin: scheduleOffset(), clockMin: Math.round(nowMin()), paceSec: Math.round(pace()), paceLive: (state.intervals || []).length >= 3, announcement: state.announcement, announcedAt: state.announcedAt, announcements: state.announcements || [], updatedAt: state.updatedAt, version: state.version, dataVersion: state.dataVersion || 1, viewers: clients.size }; };
+    marksVersion: state.marksVersion || 0, awards: liveAwards(), scheduleOffsetMin: scheduleOffset(), clockMin: Math.round(nowMin()), paceSec: Math.round(pace()), paceLive: (state.intervals || []).length >= 3, announcement: state.announcement, announcedAt: state.announcedAt, announcements: state.announcements || [], updatedAt: state.updatedAt, version: state.version, dataVersion: state.dataVersion || 1, viewers: clients.size }; };
 // Simple brute-force guard for code lookups: max 20 bad codes per IP per 10 minutes.
 const bad = new Map();
 const ipOf = (req) => { const a = req.socket.remoteAddress || "?"; const f = req.headers["x-forwarded-for"]; return (f && /127\.0\.0\.1|::1/.test(a)) ? String(f).split(",")[0].trim() : a; };
@@ -163,6 +196,107 @@ http.createServer(async (req, res) => {
       return json(res, 200, result);
     } catch (e) { return json(res, 400, { error: e.message || "Request failed" }); }
   }
+  // ---- Judges ----
+  if (p === "/api/judge/heat" && req.method === "GET") {
+    const ip = ipOf(req), b = bad.get(ip);
+    if (b && b.n >= 20 && Date.now() - b.t < 600000) return json(res, 429, { error: "Too many tries. Wait a few minutes." });
+    const j = judgeByCode(url.searchParams.get("code"));
+    if (!j) { const e = b && Date.now() - b.t < 600000 ? b : { n: 0, t: Date.now() }; e.n++; bad.set(ip, e); return json(res, 404, { error: "Code not found" }); }
+    const h = heatN(url.searchParams.get("n") || state.currentHeat) || heatN(state.currentHeat) || DATA.heats[0];
+    if (!h) return json(res, 404, { error: "No heats" });
+    return json(res, 200, { judge: { id: j.id, name: j.name }, comp: DATA.comp && DATA.comp.name, heat: judgeHeat(j, h) });
+  }
+  if (p === "/api/judge/submit" && req.method === "POST") {
+    const b = await body(req);
+    const j = judgeByCode(b.code); if (!j) return json(res, 404, { error: "Code not found" });
+    const h = heatN(b.n); if (!h) return json(res, 404, { error: "Heat not found" });
+    if (b.key && b.key !== judging.roundKey(h)) return json(res, 409, { error: "This heat's round changed. Refresh and mark again." });
+    const key = judging.roundKey(h);
+    const rec = MARKS[key] = MARKS[key] || { n: h.n, round: judging.roundOf(h), judges: {} };
+    const cur = rec.judges[j.id];
+    if (cur && cur.submitted) return json(res, 409, { error: "Already submitted. Ask staff to unlock." });
+    let cats; try { cats = cleanMarks(h, b.cats, true); } catch (e) { return json(res, 400, { error: e.message }); }
+    rec.judges[j.id] = { submitted: true, at: Date.now(), cats };
+    saveMarks(); state.version++; broadcast();
+    return json(res, 200, { ok: true, heat: judgeHeat(j, h) });
+  }
+  // Judges' phones keep their submitted marks and re-send them after a reconnect; fills only records the server lost.
+  if (p === "/api/judge/sync" && req.method === "POST") {
+    const b = await body(req);
+    const j = judgeByCode(b.code); if (!j) return json(res, 404, { error: "Code not found" });
+    let restored = 0;
+    for (const it of (Array.isArray(b.items) ? b.items : []).slice(0, 5000)) {
+      const h = heatN(it.n); if (!h || it.key !== judging.roundKey(h)) continue;
+      const rec = MARKS[it.key] = MARKS[it.key] || { n: h.n, round: judging.roundOf(h), judges: {} };
+      if (rec.judges[j.id]) continue;
+      try { rec.judges[j.id] = { submitted: true, at: Number(it.at) || Date.now(), cats: cleanMarks(h, it.cats, true), restored: true }; restored++; } catch {}
+    }
+    if (restored) { saveMarks(); state.version++; broadcast(); }
+    return json(res, 200, { ok: true, restored });
+  }
+  // ---- Results (staff) ----
+  if (p === "/api/results" && req.method === "GET") {
+    if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
+    const h = heatN(url.searchParams.get("n") || state.currentHeat); if (!h) return json(res, 404, { error: "Heat not found" });
+    return json(res, 200, judging.heatResult(DATA, h, MARKS[judging.roundKey(h)]));
+  }
+  if (p === "/api/results/summary" && req.method === "GET") {
+    if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
+    const J = (DATA.judges || []).length, rows = [];
+    for (const [key, rec] of Object.entries(MARKS)) {
+      const h = heatN(rec.n);
+      const sub = Object.values(rec.judges || {}).filter((x) => x.submitted).length;
+      rows.push({ key, n: rec.n, round: rec.round, dance: h ? h.dance : "", submitted: sub, of: J, current: !!h && judging.roundKey(h) === key });
+    }
+    rows.sort((a, b) => a.n - b.n);
+    return json(res, 200, { judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), heats: rows });
+  }
+  if (p === "/api/results/action" && req.method === "POST") {
+    const b = await body(req);
+    if (String(b.pin) !== PIN) return json(res, 401, { error: "Wrong PIN" });
+    if (b.action === "unlock") {
+      const rec = MARKS[b.key], m = rec && rec.judges && rec.judges[b.judgeId];
+      if (!m) return json(res, 404, { error: "No marks to unlock" });
+      m.submitted = false; m.unlockedAt = Date.now();
+    } else if (b.action === "restore") { // merge a downloaded backup: fills records the server doesn't have
+      const src = b.marks && b.marks.marks ? b.marks.marks : b.marks;
+      if (!src || typeof src !== "object") return json(res, 400, { error: "Not a marks backup" });
+      let n = 0;
+      for (const [key, rec] of Object.entries(src)) {
+        if (!rec || typeof rec !== "object" || !rec.judges) continue;
+        const dst = MARKS[key] = MARKS[key] || { n: rec.n, round: rec.round, judges: {} };
+        for (const [jid, m] of Object.entries(rec.judges)) if (!dst.judges[jid] && m && m.cats) { dst.judges[jid] = m; n++; }
+      }
+      saveMarks(); state.version++; broadcast();
+      return json(res, 200, { ok: true, restored: n });
+    } else return json(res, 400, { error: "Unknown action" });
+    saveMarks(); state.version++; broadcast();
+    return json(res, 200, { ok: true });
+  }
+  if (p === "/api/results/export" && req.method === "GET") {
+    if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
+    if (url.searchParams.get("format") === "csv") {
+      const q = (v) => { const t = String(v == null ? "" : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+      const jn = new Map((DATA.judges || []).map((j) => [j.id, j.name]));
+      const lines = [["type", "heat", "dance", "round", "category", "judge", "couple", "mark", "result", "submitted_at"].join(",")];
+      for (const [key, rec] of Object.entries(MARKS).sort((a, b) => a[1].n - b[1].n)) {
+        const h = heatN(rec.n);
+        for (const [jid, m] of Object.entries(rec.judges || {})) for (const [cat, v] of Object.entries(m.cats || {})) {
+          if (v.places) v.places.forEach((num, i) => lines.push(["mark", rec.n, h && h.dance, rec.round && rec.round.type, cat, jn.get(jid) || jid, num, i + 1, "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
+          if (v.recalls) v.recalls.forEach((num) => lines.push(["mark", rec.n, h && h.dance, "semi", cat, jn.get(jid) || jid, num, "X", "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
+        }
+        if (h && judging.roundKey(h) === key) for (const c of judging.heatResult(DATA, h, rec).cats) {
+          if (c.result) c.result.forEach((r) => lines.push(["result", rec.n, h.dance, "final", c.key, "", r.num, "", r.place, ""].map(q).join(",")));
+          if (c.recall) c.recall.rows.forEach((r) => lines.push(["result", rec.n, h.dance, "semi", c.key, "", r.num, r.marks, r.recalled ? "recall" : r.tieAtCut ? "tie at cutoff" : "", ""].map(q).join(",")));
+        }
+      }
+      res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename=marks-${stamp}.csv`, "Cache-Control": "no-store" });
+      return res.end(lines.join("\n") + "\n");
+    }
+    res.writeHead(200, { "Content-Type": "application/json", "Content-Disposition": `attachment; filename=marks-${stamp}.json`, "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({ comp: DATA.comp && DATA.comp.name, exportedAt: Date.now(), judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), marks: MARKS }));
+  }
   if (p === "/api/export" && req.method === "GET") {
     if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
     const csv = store.exportCsv(DATA);
@@ -170,7 +304,7 @@ http.createServer(async (req, res) => {
     return res.end(csv);
   }
   // static
-  const ROUTES = { "/": "/index.html", "/control": "/control.html", "/simple": "/simple.html", "/simple-control": "/simple-control.html", "/simple-setup": "/simple-setup.html", "/competitor": "/simple.html", "/admin": "/simple-control.html", "/setup": "/simple-setup.html" };
+  const ROUTES = { "/": "/index.html", "/control": "/control.html", "/simple": "/simple.html", "/simple-control": "/simple-control.html", "/simple-setup": "/simple-setup.html", "/competitor": "/simple.html", "/admin": "/simple-control.html", "/setup": "/simple-setup.html", "/judge": "/judge.html" };
   let f = ROUTES[p] || p;
   f = path.normalize(path.join(PUB, f));
   if (!f.startsWith(PUB)) { res.writeHead(403); return res.end(); }

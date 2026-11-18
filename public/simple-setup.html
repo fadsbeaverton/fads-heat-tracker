@@ -51,6 +51,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08e
     <button data-t="students" class="act" type="button">Dancers</button>
     <button data-t="heats" type="button">Heats</button>
     <button data-t="sched" type="button">Schedule</button>
+    <button data-t="judges" type="button">Judges</button>
     <button data-t="import" type="button">Import</button>
   </nav>
 
@@ -130,6 +131,17 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08e
       <button class="btn" id="addAw">Add</button>
     </div>
     <div id="awList" style="margin-top:12px"></div>
+  </div>
+
+  <div id="tab-judges" class="hidden">
+    <h2>Add a judge</h2>
+    <div class="row">
+      <input id="judgeName" placeholder="Judge name" autocomplete="off">
+      <button class="btn" id="addJudge">Add</button>
+    </div>
+    <p class="hint" style="margin-top:8px">Each judge gets a private code. They open <b>/judge</b> and enter it, or use their link. Set a heat's round (Final or Semifinal) on the Heats tab.</p>
+    <h2>Judges</h2>
+    <div id="judgeList"></div>
   </div>
 
   <div id="tab-import" class="hidden">
@@ -218,7 +230,7 @@ async function unlock() {
 function showTab(t) {
   tab = t;
   $$(".tabs button").forEach((b) => b.classList.toggle("act", b.dataset.t === t));
-  ["students", "heats", "sched", "import"].forEach((id) => $("#tab-" + id).classList.toggle("hidden", id !== t));
+  ["students", "heats", "sched", "judges", "import"].forEach((id) => $("#tab-" + id).classList.toggle("hidden", id !== t));
   if (t === "students") { editing = null; $("#stuEdit").classList.add("hidden"); $("#stuListWrap").classList.remove("hidden"); }
 }
 
@@ -229,6 +241,12 @@ function render() {
   renderStuEdit();
   renderHeats();
   renderSched();
+  renderJudges();
+}
+function judgeLink(code) { return location.origin + "/judge?code=" + code; }
+function renderJudges() {
+  $("#judgeList").innerHTML = (D.judges || []).map((j) => `<div class="item" data-id="${esc(j.id)}"><div class="nm">${esc(j.name)}</div><div class="meta">Code <code>${esc(j.code)}</code></div>
+    <div class="acts"><button class="btn ghost small" data-act="copy">Copy link</button><button class="btn ghost small" data-act="code">New code</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No judges yet.</p>`;
 }
 
 function renderStudents() {
@@ -286,6 +304,10 @@ function renderHeats() {
         <input data-f="time" value="${esc(h.time || "")}" placeholder="Time">
         <input data-f="dance" value="${esc(h.dance || "")}" placeholder="Dance">
         <input data-f="style" value="${esc(h.style || "")}" placeholder="Closed/Open" list="styles">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <select data-f="round" aria-label="Round"><option value="final"${h.round && h.round.type === "semi" ? "" : " selected"}>Final</option><option value="semi"${h.round && h.round.type === "semi" ? " selected" : ""}>Semifinal (recall)</option></select>
+        <input data-f="recall" type="number" inputmode="numeric" min="1" value="${h.round && h.round.recall ? h.round.recall : ""}" placeholder="Couples to recall">
       </div>
       <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`;
   }).join("") || `<p class="hint">No heats yet.</p>`;
@@ -368,13 +390,25 @@ $("#addHeat").onclick = async () => {
   if (j) { toast("Heat added"); $("#heatN").value = ""; $("#heatTime").value = ""; $("#heatDance").value = ""; $("#heatStyle").value = ""; render(); }
 };
 $("#heatQ").oninput = renderHeats;
+$("#addJudge").onclick = async () => { const j = await admin({ action: "add-judge", name: $("#judgeName").value }); if (j) { $("#judgeName").value = ""; toast("Added · code " + j.judge.code); render(); } };
+$("#judgeName").onkeydown = (e) => { if (e.key === "Enter") $("#addJudge").click(); };
+$("#judgeList").onclick = async (e) => {
+  const item = e.target.closest(".item"); if (!item) return;
+  const id = item.dataset.id, j = (D.judges || []).find((x) => x.id === id); if (!j) return;
+  const act = e.target.dataset.act;
+  if (act === "copy") copyText(judgeLink(j.code));
+  if (act === "code" && confirm("Give " + j.name + " a new code? The old one will stop working.")) { const r = await admin({ action: "new-judge-code", id }); if (r) { toast("New code: " + r.judge.code); render(); } }
+  if (act === "del" && confirm("Delete judge " + j.name + "? Their submitted marks stay in the results backup.")) { if (await admin({ action: "delete-judge", id })) { toast("Deleted"); render(); } }
+};
 $("#heatList").onclick = async (e) => {
   const item = e.target.closest(".item"); if (!item) return;
   const n = item.dataset.n;
   if (e.target.dataset.act === "del") { if (!confirm("Delete heat " + n + "? Later heats will be renumbered.")) return; if (await admin({ action: "delete-heat", n })) { toast("Deleted"); render(); } }
   if (e.target.dataset.act === "save") {
     const time = item.querySelector("[data-f=time]").value, dance = item.querySelector("[data-f=dance]").value, style = item.querySelector("[data-f=style]").value;
-    if (await admin({ action: "update-heat", n, time, dance, style })) toast("Saved");
+    const round = item.querySelector("[data-f=round]").value, recall = item.querySelector("[data-f=recall]").value;
+    if (round === "semi" && !(parseInt(recall, 10) >= 1)) { alert("Enter how many couples to recall."); return; }
+    if (await admin({ action: "update-heat", n, time, dance, style, round, recall })) { toast("Saved"); renderHeats(); }
   }
 };
 

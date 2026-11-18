@@ -58,7 +58,7 @@ function save(d) {
 }
 
 function newCode(d) {
-  const used = new Set([...(d.students || []).map((s) => s.code), ...(d.pros || []).map((p) => p.code).filter(Boolean)]);
+  const used = new Set([...(d.students || []).map((s) => s.code), ...(d.pros || []).map((p) => p.code).filter(Boolean), ...(d.judges || []).map((j) => j.code)]);
   let c;
   do { c = Array.from({ length: 6 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join(""); } while (used.has(c));
   return c;
@@ -86,7 +86,7 @@ function maxHeat(d) { return (d.heats || []).reduce((m, h) => Math.max(m, h.n), 
 function heatByN(d, n) { return (d.heats || []).find((h) => h.n === n); }
 function ensureHeat(d, n, fields) {
   n = parseInt(n, 10);
-  if (!(n >= 1 && n <= 999)) throw new Error("Heat must be a number from 1 to 999");
+  if (!(n >= 1 && n <= 9999)) throw new Error("Heat must be a number from 1 to 9999");
   let h = heatByN(d, n);
   if (!h) {
     const max = maxHeat(d);
@@ -194,12 +194,27 @@ function updateHeat(d, b) {
   if (b.style != null) h.style = String(b.style).trim();
   if (b.level != null) h.level = String(b.level).trim();
   if (b.time != null) { h.time = String(b.time).trim(); stamp(h); }
+  if (b.round != null) { // judging round: Final (default) or Semifinal with N couples to recall
+    if (b.round === "semi") h.round = { type: "semi", recall: Math.max(1, Math.min(999, parseInt(b.recall, 10) || 6)) };
+    else delete h.round;
+  }
   return h;
+}
+// Judges: name + private code (same style as dancer codes).
+function addJudge(d, b) {
+  const name = String(b.name || "").trim().slice(0, 80);
+  if (!name) throw new Error("Judge name is required");
+  d.judges = d.judges || [];
+  if (d.judges.some((j) => j.name.toLowerCase() === name.toLowerCase())) throw new Error("A judge with that name already exists");
+  const nums = d.judges.map((j) => Number(String(j.id || "").replace(/\D/g, "")) || 0);
+  const j = { id: "j" + ((nums.length ? Math.max(...nums) : 0) + 1), name, code: newCode(d) };
+  d.judges.push(j);
+  return j;
 }
 function addHeat(d, b) {
   const max = maxHeat(d);
   let n = b.n != null && String(b.n).trim() !== "" ? parseInt(b.n, 10) : max + 1;
-  if (!(n >= 1 && n <= 999)) throw new Error("Heat must be a number from 1 to 999");
+  if (!(n >= 1 && n <= 9999)) throw new Error("Heat must be a number from 1 to 9999");
   if (heatByN(d, n)) throw new Error("Heat " + n + " already exists");
   if (n <= max) renumberFrom(d, n, 1);
   return ensureHeat(d, n, { dance: b.dance || "", style: b.style || "", time: b.time || "", level: b.level || "" });
@@ -563,6 +578,10 @@ function apply(d, b) {
     s.code = newCode(d);
     return { ok: true, student: s, data: d };
   }
+  else if (act === "add-judge") { const j = addJudge(d, b); return { ok: true, judge: j, data: d }; }
+  else if (act === "update-judge") { const j = (d.judges || []).find((x) => x.id === b.id); if (!j) throw new Error("Judge not found"); if (b.name != null && String(b.name).trim()) j.name = String(b.name).trim().slice(0, 80); }
+  else if (act === "delete-judge") { const before = (d.judges || []).length; d.judges = (d.judges || []).filter((x) => x.id !== b.id); if (d.judges.length === before) throw new Error("Judge not found"); }
+  else if (act === "new-judge-code") { const j = (d.judges || []).find((x) => x.id === b.id); if (!j) throw new Error("Judge not found"); j.code = newCode(d); return { ok: true, judge: j, data: d }; }
   else if (act === "add-entry") addEntry(d, b);
   else if (act === "remove-entry") removeEntry(d, b);
   else if (act === "update-heat") updateHeat(d, b);
