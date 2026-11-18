@@ -20,6 +20,7 @@ const MARKS_FILE = path.join(__dirname, "marks.json");
 let MARKS = {};
 try { MARKS = JSON.parse(fs.readFileSync(MARKS_FILE, "utf8")) || {}; } catch {}
 const overall = () => (DATA.multis || []).map((m) => judging.multiResult(DATA, m, (h) => MARKS[judging.roundKey(h)]));
+const multiHeats = () => DATA.heats.filter((h) => judging.dancesOf(h)).map((h) => judging.heatResult(DATA, h, MARKS[judging.roundKey(h)]));
 const saveMarks = () => { state.marksVersion = (state.marksVersion || 0) + 1; fs.writeFile(MARKS_FILE, JSON.stringify(MARKS), () => {}); };
 const judgeByCode = (code) => (DATA.judges || []).find((j) => j.code === String(code || "").trim().toUpperCase()) || null;
 const heatN = (n) => DATA.heats.find((h) => h.n === parseInt(n, 10)) || null;
@@ -29,6 +30,21 @@ function cleanMarks(h, cats, final) {
   for (const c of judging.categories(DATA, h)) {
     if (c.couples.length < 2) continue;
     const nums = c.couples.map((x) => x.num), m = (cats || {})[c.key] || {};
+    const dances = judging.dancesOf(h);
+    if (dances) { // multi-dance heat: one set of marks per dance
+      const src = m.dances || {}, per = {};
+      for (const dn of dances) {
+        const v = src[dn] || {};
+        if (round.type === "semi") per[dn] = { recalls: [...new Set((v.recalls || []).map(String))].filter((x) => nums.includes(x)) };
+        else {
+          const pl = [...new Set((v.places || []).map(String))].filter((x) => nums.includes(x));
+          if (final && pl.length !== nums.length) throw new Error(`Place every couple in ${c.key}, ${dn} (${pl.length} of ${nums.length})`);
+          per[dn] = { places: pl };
+        }
+      }
+      out[c.key] = { dances: per };
+      continue;
+    }
     if (round.type === "semi") {
       const rec = [...new Set((m.recalls || []).map(String))].filter((x) => nums.includes(x));
       out[c.key] = { recalls: rec };
@@ -43,7 +59,7 @@ function cleanMarks(h, cats, final) {
 function judgeHeat(j, h) {
   const rec = MARKS[judging.roundKey(h)];
   const mine = rec && rec.judges && rec.judges[j.id];
-  return { n: h.n, dance: h.dance, style: h.style, time: h.time, day: h.day, round: judging.roundOf(h), key: judging.roundKey(h), total: DATA.heats.length,
+  return { n: h.n, dance: h.dance, label: judging.danceLabel(h), dances: judging.dancesOf(h), style: h.style, time: h.time, day: h.day, round: judging.roundOf(h), key: judging.roundKey(h), total: DATA.heats.length,
     cats: judging.categories(DATA, h), mine: mine ? { submitted: !!mine.submitted, at: mine.at, cats: mine.cats } : null };
 }
 
@@ -254,7 +270,7 @@ http.createServer(async (req, res) => {
   }
   if (p === "/api/results/overall" && req.method === "GET") { // championships / scholarships: most 1sts, then 2nds…
     if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
-    return json(res, 200, { events: overall() });
+    return json(res, 200, { heats: multiHeats(), events: overall() });
   }
   if (p === "/api/multis/suggest" && req.method === "GET") {
     if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
@@ -292,10 +308,19 @@ http.createServer(async (req, res) => {
       for (const [key, rec] of Object.entries(MARKS).sort((a, b) => a[1].n - b[1].n)) {
         const h = heatN(rec.n);
         for (const [jid, m] of Object.entries(rec.judges || {})) for (const [cat, v] of Object.entries(m.cats || {})) {
+          if (v.dances) for (const [dn, dv] of Object.entries(v.dances)) {
+            (dv.places || []).forEach((num, i) => lines.push(["mark", rec.n, dn, rec.round && rec.round.type, cat, jn.get(jid) || jid, num, i + 1, "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
+            (dv.recalls || []).forEach((num) => lines.push(["mark", rec.n, dn, "semi", cat, jn.get(jid) || jid, num, "X", "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
+          }
           if (v.places) v.places.forEach((num, i) => lines.push(["mark", rec.n, h && h.dance, rec.round && rec.round.type, cat, jn.get(jid) || jid, num, i + 1, "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
           if (v.recalls) v.recalls.forEach((num) => lines.push(["mark", rec.n, h && h.dance, "semi", cat, jn.get(jid) || jid, num, "X", "", m.submitted ? new Date(m.at).toISOString() : "unlocked"].map(q).join(",")));
         }
         if (h && judging.roundKey(h) === key) for (const c of judging.heatResult(DATA, h, rec).cats) {
+          if (c.multi) for (const pd of c.dances) {
+            if (pd.result) pd.result.forEach((r) => lines.push(["result", rec.n, pd.dance, "final", c.key, "", r.num, "", r.place, ""].map(q).join(",")));
+            if (pd.recall) pd.recall.rows.forEach((r) => lines.push(["result", rec.n, pd.dance, "semi", c.key, "", r.num, r.marks, r.recalled ? "recall" : r.tieAtCut ? "tie at cutoff" : "", ""].map(q).join(",")));
+          }
+          if (c.overall) c.overall.rows.forEach((r) => lines.push(["overall", rec.n, h.dance, "final", c.key, "", r.num, r.counts.map((v, i) => (i + 1) + ":" + v).join(" "), r.place == null ? "" : (r.tie ? "tie " : "") + r.place, ""].map(q).join(",")));
           if (c.result) c.result.forEach((r) => lines.push(["result", rec.n, h.dance, "final", c.key, "", r.num, "", r.place, ""].map(q).join(",")));
           if (c.recall) c.recall.rows.forEach((r) => lines.push(["result", rec.n, h.dance, "semi", c.key, "", r.num, r.marks, r.recalled ? "recall" : r.tieAtCut ? "tie at cutoff" : "", ""].map(q).join(",")));
         }
@@ -307,7 +332,7 @@ http.createServer(async (req, res) => {
       return res.end(lines.join("\n") + "\n");
     }
     res.writeHead(200, { "Content-Type": "application/json", "Content-Disposition": `attachment; filename=marks-${stamp}.json`, "Cache-Control": "no-store" });
-    return res.end(JSON.stringify({ comp: DATA.comp && DATA.comp.name, exportedAt: Date.now(), judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), marks: MARKS, multis: (DATA.multis || []).map((m) => ({ id: m.id, name: m.name, heats: m.heats })), overall: overall() }));
+    return res.end(JSON.stringify({ comp: DATA.comp && DATA.comp.name, exportedAt: Date.now(), judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), marks: MARKS, multis: (DATA.multis || []).map((m) => ({ id: m.id, name: m.name, heats: m.heats })), overall: overall(), multiDanceHeats: multiHeats() }));
   }
   if (p === "/api/export" && req.method === "GET") {
     if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });

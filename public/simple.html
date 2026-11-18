@@ -84,9 +84,9 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
 </div>
 </div>
 <button type="button" id="recenter" class="recenter hidden">Back to my next heat</button>
-<script src="/live.js"></script>
+<script src="/live.js"></script><script src="/dances.js"></script>
 <script>
-function abbr(d) { return String(d || "").replace(/east coast swing/gi, "E.C. Swing"); }
+function abbr(d) { return window.Dances ? Dances.label(String(d || "").replace(/east coast swing/gi, "E.C. Swing")) : String(d || ""); }
 // Privacy: this page never receives other dancers' heats. It gets only public live info
 // (current heat, dance, level), this dancer's own heats from /api/me, and the public day schedule.
 const $ = (s) => document.querySelector(s);

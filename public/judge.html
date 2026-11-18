@@ -46,6 +46,10 @@
 .bar button{flex:1;height:56px;border:0;border-radius:16px;font-size:18px;font-weight:800;font-family:inherit}
 #submit{background:var(--ink);color:#fff}#submit:disabled{background:#cfcfcf;color:#fff}
 #clearAll{flex:0 0 96px;background:#fff;border:2px solid var(--line);color:var(--ink)}
+.dtabs{display:flex;gap:6px;overflow-x:auto;margin:6px -20px 0;padding:0 20px 2px;scrollbar-width:none}.dtabs::-webkit-scrollbar{display:none}
+.dtabs button{flex:1 0 auto;border:2px solid var(--line);background:#fff;border-radius:12px;padding:7px 10px;font-size:14px;font-weight:700;color:var(--mut);font-family:inherit;white-space:nowrap}
+.dtabs button.ok{color:var(--ink)}.dtabs button.act{background:var(--ink);border-color:var(--ink);color:#fff}
+.nextd{display:block;width:100%;margin:6px 0 0;height:54px;border:2px solid var(--ink);border-radius:16px;background:#fff;color:var(--ink);font-size:17px;font-weight:800;font-family:inherit}
 .hidden{display:none!important}
 .toast{position:fixed;bottom:calc(86px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30;white-space:nowrap}
 body{background:transparent!important}body::before{content:"";position:fixed;top:calc(var(--topH) + 120px);bottom:90px;left:0;right:0;margin:0 auto;width:min(80vw,460px);z-index:-1;pointer-events:none;background:url(/logo-bg.png) center/contain no-repeat;opacity:.07}
@@ -64,6 +68,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
       <div class="hinfo"><div class="hnum" id="hnum">Heat –</div><div class="hsub" id="hsub"></div></div>
       <button class="arr" id="nextH" type="button" aria-label="Next heat">▶</button></div>
     <div class="floorrow" id="floorrow"></div>
+    <div class="dtabs hidden" id="dtabs"></div>
   </div>
   <div class="status" id="status"></div>
   <div id="cats"></div>
@@ -77,6 +82,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const ord = (i) => { const s = ["th", "st", "nd", "rd"], v = i % 100; return i + (s[(v - 20) % 10] || s[v] || s[0]); };
 const fmtT = (ts) => { const d = new Date(ts); let h = d.getHours(); const m = String(d.getMinutes()).padStart(2, "0"); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + m + " " + ap; };
 function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); }
+let di = 0; // current dance in a multi-dance heat
 let code = null, judge = null, H = null, draft = {}, follow = true, floor = 1, total = 0, marksVer = null, busy = false, loadSeq = 0;
 const dKey = () => "jd:" + code + ":" + H.key;           // in-progress marks on this phone
 const sKey = () => "js:" + code;                           // submitted marks kept on this phone (re-sent if the server loses them)
@@ -99,6 +105,7 @@ async function loadHeat(n, keepScroll) {
   draft = readJ(dKey(), null) || (H.mine && !H.mine.submitted ? H.mine.cats : null) || {};
   if (H.mine && !H.mine.submitted) { const all = readJ(sKey(), {}); if (all[H.key]) { delete all[H.key]; localStorage.setItem(sKey(), JSON.stringify(all)); } }
   if (H.mine && H.mine.submitted) { const all = readJ(sKey(), {}); all[H.key] = { n: H.n, key: H.key, at: H.mine.at, cats: H.mine.cats }; localStorage.setItem(sKey(), JSON.stringify(all)); }
+  if (!keepScroll || !H.dances || di >= H.dances.length) { di = 0; if (H.dances && !locked()) { const k = H.dances.findIndex((_, i) => !danceDone(i)); di = k < 0 ? 0 : k; } }
   render(); if (!keepScroll) window.scrollTo(0, 0);
   return true;
 }
@@ -110,28 +117,48 @@ function show() {
 }
 const contested = () => (H ? H.cats.filter((c) => c.couples.length >= 2) : []);
 const locked = () => !!(H && H.mine && H.mine.submitted);
-function catDone(c) {
-  const m = draft[c.key] || {};
+// Marks for a category: plain heats keep { places } / { recalls } per category; multi-dance heats keep one per dance under .dances.
+function marksFor(c, i, src) {
+  const m = (src || draft)[c.key] || {};
+  return H.dances ? ((m.dances || {})[H.dances[i]] || {}) : m;
+}
+function editMarks(c) {
+  const m = draft[c.key] = draft[c.key] || {};
+  if (!H.dances) return m;
+  m.dances = m.dances || {};
+  return m.dances[H.dances[di]] = m.dances[H.dances[di]] || {};
+}
+const hasMarks = (o) => !!o && typeof o === "object" && (Array.isArray(o) ? o.length > 0 : Object.values(o).some(hasMarks));
+function catDone(c, i) {
+  const m = marksFor(c, i);
   return H.round.type === "semi" ? true : (m.places || []).length === c.couples.length;
 }
+function danceDone(i, strict) { // strict: semis also need the target number of recalls
+  return contested().every((c) => H.round.type === "semi" ? (!strict || (marksFor(c, i).recalls || []).length === Math.min(H.round.recall, c.couples.length)) : catDone(c, i));
+}
+const allDone = () => (H.dances ? H.dances.every((_, i) => danceDone(i)) : contested().every((c) => catDone(c, 0)));
 function render() {
   if (!H) return;
   $("#who").innerHTML = "Judge · <b>" + esc(judge.name) + "</b>";
   $("#hnum").textContent = "Heat " + H.n;
   const rnd = H.round.type === "semi" ? "Semi · recall " + H.round.recall : "Final";
-  $("#hsub").textContent = [H.dance, H.style, rnd].filter(Boolean).join(" · ");
+  $("#hsub").textContent = [H.dances ? String(H.label || "").split(" · ")[0] : H.dance, H.style, rnd].filter(Boolean).join(" · ");
+  const lk0 = locked(), multi = !!H.dances && contested().length > 0;
+  $("#dtabs").classList.toggle("hidden", !multi);
+  if (multi) $("#dtabs").innerHTML = H.dances.map((d, i) => { const ok = lk0 || danceDone(i, true); return `<button type="button" data-d="${i}" class="${i === di ? "act" : ""}${ok ? " ok" : ""}">${esc(d)}${ok ? " ✓" : (H.round.type !== "semi" && contested().some((c) => (marksFor(c, i).places || []).length)) ? " …" : ""}</button>`; }).join("");
+  if (multi) { const act = $("#dtabs .act"); if (act) { const bx = $("#dtabs"); bx.scrollLeft = Math.max(0, act.offsetLeft - (bx.clientWidth - act.offsetWidth) / 2); } }
   $("#prev").disabled = H.n <= 1; $("#nextH").disabled = H.n >= total;
   $("#floorrow").innerHTML = H.n === floor ? '<span class="onfl">● On the floor</span>' : `<span>Floor: Heat ${floor}</span><button type="button" id="toFloor">Go to floor</button>`;
   const lk = locked(), cs = contested();
   $("#status").className = "status" + (lk ? " done" : "");
   $("#status").innerHTML = !cs.length ? "" : lk ? `<span>✓ Submitted ${esc(fmtT(H.mine.at))}</span><span style="font-weight:400;color:var(--mut);font-size:13px">Locked · staff can unlock</span>`
-    : H.round.type === "semi" ? "<span>Tap couples to recall</span>" : "<span>Tap couples in order: 1st, 2nd, 3rd…</span>";
+    : (H.dances ? "<span><b style=\"color:var(--ink)\">" + esc(H.dances[di]) + "</b> · " + (di + 1) + " of " + H.dances.length + " · " : "<span>") + (H.round.type === "semi" ? "Tap couples to recall</span>" : "Tap couples in order: 1st, 2nd, 3rd…</span>");
   $("#cats").className = lk ? "locked" : "";
   if (!H.cats.length) { $("#cats").innerHTML = '<div class="none">No couples in this heat.</div>'; }
   else $("#cats").innerHTML = H.cats.map((c, ci) => {
     const who = (x) => esc([x.lead, x.follow].filter(Boolean).join(" & "));
     if (c.couples.length < 2) return `<div class="cat"><div class="ch"><span class="ct">${esc(c.key)}</span><span class="cc">1 couple</span></div><div class="solo">#${esc(c.couples[0].num)} ${who(c.couples[0])} · uncontested (1st)</div></div>`;
-    const m = (lk ? (H.mine.cats || {})[c.key] : draft[c.key]) || {};
+    const m = marksFor(c, di, lk ? (H.mine.cats || {}) : draft);
     let cc, rows;
     if (H.round.type === "semi") {
       const rec = m.recalls || [], tgt = Math.min(H.round.recall, c.couples.length);
@@ -142,22 +169,25 @@ function render() {
       cc = `<span class="cc${pl.length === c.couples.length ? " ok" : ""}">${pl.length} of ${c.couples.length} placed</span>`;
       rows = c.couples.map((x) => { const i = pl.indexOf(x.num); return `<button type="button" class="cp${i >= 0 ? " on" : ""}" data-c="${ci}" data-num="${esc(x.num)}"${lk ? " disabled" : ""}><span class="num">${esc(x.num)}</span><span class="nm">${who(x)}</span><span class="badge">${i >= 0 ? ord(i + 1) : ""}</span></button>`; }).join("");
     }
-    const clr = !lk && ((m.places || m.recalls || []).length) ? `<button type="button" class="clr" data-clr="${ci}">Clear ${esc(c.key)}</button>` : "";
+    const clr = !lk && ((m.places || m.recalls || []).length) ? `<button type="button" class="clr" data-clr="${ci}">Clear ${esc(c.key)}${H.dances ? " · " + esc(H.dances[di]) : ""}</button>` : "";
     return `<div class="cat"><div class="ch"><span class="ct">${esc(c.key)}</span>${cc}</div>${rows}${clr}</div>`;
   }).join("");
+  if (H.dances && cs.length && !lk && di < H.dances.length - 1 && danceDone(di)) $("#cats").insertAdjacentHTML("beforeend", `<button type="button" class="nextd" data-next="1">Next: ${esc(H.dances[di + 1])} ▶</button>`);
   const needs = cs.length > 0 && !lk;
   $("#bar").classList.toggle("hidden", !needs);
-  $("#submit").disabled = !needs || !cs.every(catDone) || busy;
+  $("#submit").disabled = !needs || !allDone() || busy;
+  $("#submit").textContent = H.dances && needs && !allDone() ? "Submit (" + H.dances.filter((_, i) => danceDone(i)).length + "/" + H.dances.length + ")" : "Submit";
   $("#clearAll").disabled = !needs;
 }
 function saveDraft() { localStorage.setItem(dKey(), JSON.stringify(draft)); }
 $("#cats").onclick = (e) => {
   if (!H || locked()) return;
   const clr = e.target.closest("[data-clr]");
-  if (clr) { delete draft[H.cats[+clr.dataset.clr].key]; saveDraft(); return render(); }
+  if (e.target.closest("[data-next]")) { di++; render(); window.scrollTo(0, 0); return; }
+  if (clr) { const c = H.cats[+clr.dataset.clr]; if (H.dances) { const m = editMarks(c); delete m.places; delete m.recalls; } else delete draft[c.key]; saveDraft(); return render(); }
   const b = e.target.closest(".cp"); if (!b) return;
   const c = H.cats[+b.dataset.c], num = b.dataset.num;
-  const m = draft[c.key] = draft[c.key] || {};
+  const m = editMarks(c);
   if (H.round.type === "semi") {
     const rec = m.recalls = m.recalls || [];
     const i = rec.indexOf(num); if (i >= 0) rec.splice(i, 1); else rec.push(num);
@@ -169,12 +199,13 @@ $("#cats").onclick = (e) => {
   }
   saveDraft(); render();
 };
-$("#clearAll").onclick = () => { if (!H || locked()) return; if (Object.keys(draft).length && !confirm("Clear your marks for this heat?")) return; draft = {}; saveDraft(); render(); };
+$("#clearAll").onclick = () => { if (!H || locked()) return; if (hasMarks(draft) && !confirm(H.dances ? "Clear your marks for all " + H.dances.length + " dances in this heat?" : "Clear your marks for this heat?")) return; draft = {}; saveDraft(); render(); };
 $("#submit").onclick = async () => {
   if (!H || locked() || busy) return;
   if (H.round.type === "semi") {
-    const off = contested().filter((c) => ((draft[c.key] || {}).recalls || []).length !== Math.min(H.round.recall, c.couples.length));
-    if (off.length && !confirm(off.map((c) => `${c.key}: ${((draft[c.key] || {}).recalls || []).length} of ${Math.min(H.round.recall, c.couples.length)} recalls`).join("\n") + "\n\nSubmit anyway?")) return;
+    const off = [];
+    (H.dances || [null]).forEach((dn, i) => contested().forEach((c) => { const k = (marksFor(c, i).recalls || []).length, t = Math.min(H.round.recall, c.couples.length); if (k !== t) off.push(`${dn ? dn + " · " : ""}${c.key}: ${k} of ${t} recalls`); }));
+    if (off.length && !confirm(off.join("\n") + "\n\nSubmit anyway?")) return;
   }
   busy = true; render();
   const r = await fetch("/api/judge/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, n: H.n, key: H.key, cats: draft }) }).catch(() => null);
@@ -185,6 +216,7 @@ $("#submit").onclick = async () => {
   H = j.heat; const all = readJ(sKey(), {}); all[H.key] = { n: H.n, key: H.key, at: H.mine.at, cats: H.mine.cats }; localStorage.setItem(sKey(), JSON.stringify(all));
   toast("Submitted"); render();
 };
+$("#dtabs").onclick = (e) => { const b = e.target.closest("[data-d]"); if (b) { di = +b.dataset.d; render(); window.scrollTo(0, 0); } };
 $("#prev").onclick = () => { if (H && H.n > 1) { follow = false; loadHeat(H.n - 1); } };
 $("#nextH").onclick = () => { if (H && H.n < total) { follow = H.n + 1 === floor; loadHeat(H.n + 1); } };
 $("#floorrow").onclick = (e) => { if (e.target.id === "toFloor") { follow = true; loadHeat(floor); } };
@@ -207,7 +239,7 @@ Live.onState((st) => {
   floor = st.currentHeat; total = st.total || total;
   if (!code || !H) return;
   const mv = st.marksVersion;
-  if (follow && H.n !== floor) { const busyHere = !locked() && Object.keys(draft).some((k) => ((draft[k].places || draft[k].recalls || []).length)); if (!busyHere) loadHeat(floor); else { follow = false; render(); } } // mid-marking: stay put, offer "Go to floor"
+  if (follow && H.n !== floor) { const busyHere = !locked() && hasMarks(draft); if (!busyHere) loadHeat(floor); else { follow = false; render(); } } // mid-marking: stay put, offer "Go to floor"
   else if (marksVer != null && mv !== marksVer) loadHeat(H.n, true); // staff unlocked / data changed
   else render();
   marksVer = mv;

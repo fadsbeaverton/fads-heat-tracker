@@ -1,6 +1,11 @@
 // Judging: categories within a heat, the skating system (rules 5–8, single dance) and recall tallies.
 // Pure functions over comp data + marks so they can be tested on their own.
 
+const Dances = require("./public/dances.js");
+// A championship / scholarship is one heat whose name lists its dances, e.g. "Smooth Championship (W, T, F)". Everyone in a category dances all of them.
+function dancesOf(h) { const p = Dances.parse(h.dance) || Dances.parse(h.name || h.title || ""); return p ? p.dances.map((d) => d.name) : null; }
+const danceLabel = (h) => Dances.label(h.dance);
+
 const isOpen = (s) => /\bopen\b/i.test(String(s || ""));
 const isClosed = (s) => /\bclosed\b/i.test(String(s || ""));
 
@@ -39,7 +44,7 @@ function categories(d, h) {
   return out;
 }
 const roundOf = (h) => (h.round && h.round.type === "semi") ? { type: "semi", recall: Math.max(1, parseInt(h.round.recall, 10) || 1) } : { type: "final" };
-const roundKey = (h) => h.n + ":" + roundOf(h).type;
+const roundKey = (h) => { const ds = dancesOf(h); return h.n + ":" + roundOf(h).type + (ds ? ":" + ds.join("+") : ""); };
 
 // Skating system, single dance (rules 5–8).
 // marks: { judgeId: [num1st, num2nd, ...] } (each judge ranks every couple). Returns [{ num, place, detail }] sorted by place.
@@ -90,24 +95,54 @@ function tallyRecalls(nums, recalls, target) {
   return { rows, target: N, tie, cutMarks: cut };
 }
 
+// Rank rows that carry counts[i] = number of (i+1)th-place marks: most 1sts, then most 2nds, … Identical counts share a place and are flagged.
+function rankByVotes(rows) {
+  const P = Math.max(1, ...rows.map((r) => r.counts.length));
+  rows.forEach((r) => { r.counts = Array.from({ length: P }, (_, i) => r.counts[i] || 0); r.votes = r.counts.reduce((a, b) => a + b, 0); });
+  const cmp = (a, b) => { for (let i = 0; i < P; i++) if (a.counts[i] !== b.counts[i]) return b.counts[i] - a.counts[i]; return 0; };
+  rows.sort((a, b) => cmp(a, b) || (parseFloat(a.num) || 0) - (parseFloat(b.num) || 0));
+  const anyVotes = rows.some((r) => r.votes);
+  rows.forEach((r, i) => { r.place = !anyVotes ? null : i > 0 && cmp(rows[i - 1], r) === 0 ? rows[i - 1].place : i + 1; });
+  rows.forEach((r) => { r.tie = anyVotes && rows.some((o) => o !== r && o.place === r.place); });
+  return { places: P, rows, ties: rows.some((r) => r.tie), anyVotes };
+}
+
 // Full result for one heat: categories, each judge's marks, outstanding judges, and the computed placements / recalls.
+// Multi-dance heats: per-dance placements (skating system) or recalls, plus an overall per category
+// (finals: most 1st-place marks across all dances, then 2nds…; semis: recall marks summed across dances).
 function heatResult(d, h, rec) {
-  const round = roundOf(h), judges = d.judges || [];
+  const round = roundOf(h), judges = d.judges || [], dances = dancesOf(h);
   const cats = categories(d, h);
   const byJ = (rec && rec.judges) || {};
   const contested = cats.filter((c) => c.couples.length >= 2);
   const submitted = judges.filter((j) => byJ[j.id] && byJ[j.id].submitted);
   const outstanding = contested.length ? judges.filter((j) => !(byJ[j.id] && byJ[j.id].submitted)) : [];
+  const pick = (m) => (m ? (round.type === "semi" ? (m.recalls || []) : (m.places || [])) : null);
   const catsOut = cats.map((c) => {
     const nums = c.couples.map((x) => x.num);
     const base = { key: c.key, couples: c.couples, contested: nums.length >= 2 };
     if (nums.length < 2) return { ...base, result: nums.map((num) => ({ num, place: 1, detail: "uncontested" })) };
+    if (dances) {
+      const per = dances.map((dance) => {
+        const marks = {};
+        for (const j of submitted) { const v = pick((((byJ[j.id].cats || {})[c.key] || {}).dances || {})[dance]); if (v) marks[j.id] = v; }
+        return round.type === "semi" ? { dance, marks, recall: tallyRecalls(nums, marks, round.recall) } : { dance, marks, result: skate(nums, marks) };
+      });
+      if (round.type === "semi") { // total recall marks across all dances
+        const all = {}; per.forEach((p, i) => { for (const [jid, v] of Object.entries(p.marks)) all[jid + "|" + i] = v; });
+        return { ...base, multi: true, dances: per, recall: tallyRecalls(nums, all, round.recall) };
+      }
+      const counts = new Map(nums.map((n) => [n, []]));
+      for (const p of per) for (const places of Object.values(p.marks)) places.forEach((num, i) => { const r = counts.get(num); if (r) r[i] = (r[i] || 0) + 1; });
+      const ov = rankByVotes(c.couples.map((x) => ({ num: x.num, lead: x.lead, follow: x.follow, counts: counts.get(x.num) })));
+      return { ...base, multi: true, dances: per, overall: ov };
+    }
     const marks = {};
-    for (const j of submitted) { const m = (byJ[j.id].cats || {})[c.key]; if (m) marks[j.id] = round.type === "semi" ? (m.recalls || []) : (m.places || []); }
+    for (const j of submitted) { const v = pick((byJ[j.id].cats || {})[c.key]); if (v) marks[j.id] = v; }
     if (round.type === "semi") return { ...base, marks, recall: tallyRecalls(nums, marks, round.recall) };
     return { ...base, marks, result: skate(nums, marks) };
   });
-  return { n: h.n, dance: h.dance, style: h.style, time: h.time, round, key: roundKey(h), judges: judges.map((j) => ({ id: j.id, name: j.name, submitted: !!(byJ[j.id] && byJ[j.id].submitted), at: byJ[j.id] && byJ[j.id].at })), outstanding: outstanding.map((j) => j.name), contested: contested.length > 0, cats: catsOut };
+  return { n: h.n, dance: h.dance, label: danceLabel(h), dances, style: h.style, time: h.time, round, key: roundKey(h), judges: judges.map((j) => ({ id: j.id, name: j.name, submitted: !!(byJ[j.id] && byJ[j.id].submitted), at: byJ[j.id] && byJ[j.id].at })), outstanding: outstanding.map((j) => j.name), contested: contested.length > 0, cats: catsOut };
 }
 
 // ---- Multi-dance events (championships, scholarships) ----
@@ -130,7 +165,7 @@ const coupleSet = (h) => (h.entries || []).map(coupleNum).sort().join(",");
 // 2) consecutive heats on the same day with different dances of one family (Smooth, Rhythm…) and exactly the same couples (2+ couples, 3+ dances).
 function suggestMultis(d) {
   const used = new Set((d.multis || []).flatMap((m) => m.heats || []));
-  const H = (d.heats || []).slice().sort((a, b) => a.n - b.n).filter((h) => !used.has(h.n));
+  const H = (d.heats || []).slice().sort((a, b) => a.n - b.n).filter((h) => !used.has(h.n) && !dancesOf(h));
   const out = [], taken = new Set();
   const label = (h) => [h.style, h.dance, h.level].filter(Boolean).join(" ");
   const base = (h) => label(h).replace(KNOWN_DANCES, " ").replace(/[()\[\]\/,–—:-]+/g, " ").replace(/\s+/g, " ").trim();
@@ -172,25 +207,17 @@ function multiResult(d, m, marksFor) {
       for (const x of c.couples) { let row = cat.rows.get(x.num); if (!row) { row = { num: x.num, lead: x.lead, follow: x.follow, counts: [], dances: 0 }; cat.rows.set(x.num, row); } row.dances++; }
       if (!c.contested) continue;
       cat.contested++;
-      for (const places of Object.values(c.marks || {})) places.forEach((num, i) => { const row = cat.rows.get(num); if (row) row.counts[i] = (row.counts[i] || 0) + 1; });
+      const sets = c.multi ? c.dances.flatMap((p) => (p.result ? Object.values(p.marks) : [])) : c.result ? Object.values(c.marks || {}) : [];
+      for (const places of sets) places.forEach((num, i) => { const row = cat.rows.get(num); if (row) row.counts[i] = (row.counts[i] || 0) + 1; });
     }
   }
   const catsOut = cats.map((cat) => {
-    const rows = [...cat.rows.values()];
-    const P = Math.max(1, ...rows.map((r) => r.counts.length));
-    rows.forEach((r) => { r.counts = Array.from({ length: P }, (_, i) => r.counts[i] || 0); r.votes = r.counts.reduce((a, b) => a + b, 0); });
-    const cmp = (a, b) => { for (let i = 0; i < P; i++) if (a.counts[i] !== b.counts[i]) return b.counts[i] - a.counts[i]; return 0; };
-    rows.sort((a, b) => cmp(a, b) || (parseFloat(a.num) || 0) - (parseFloat(b.num) || 0));
-    const anyVotes = rows.some((r) => r.votes);
-    if (!cat.contested) { rows.forEach((r) => { r.place = rows.length === 1 ? 1 : null; r.tie = false; }); return { key: cat.key, places: P, rows, ties: false, uncontested: true }; }
-    rows.forEach((r, i) => {
-      r.place = !anyVotes ? null : i > 0 && cmp(rows[i - 1], r) === 0 ? rows[i - 1].place : i + 1;
-    });
-    rows.forEach((r) => { r.tie = anyVotes && rows.some((o) => o !== r && o.place === r.place); });
-    return { key: cat.key, places: P, rows, ties: rows.some((r) => r.tie) };
+    const rk = rankByVotes([...cat.rows.values()]);
+    if (!cat.contested) { rk.rows.forEach((r) => { r.place = rk.rows.length === 1 ? 1 : null; r.tie = false; }); return { key: cat.key, places: rk.places, rows: rk.rows, ties: false, uncontested: true }; }
+    return { key: cat.key, places: rk.places, rows: rk.rows, ties: rk.ties };
   });
   const full = dances.filter((x) => x.full).length;
   return { id: m.id, name: m.name, kind: kindOf(m.name), heats: m.heats, dances, full, total: dances.length, complete: dances.length > 0 && full === dances.length, judges: judges.length, cats: catsOut };
 }
 
-module.exports = { categoryOf, categories, roundOf, roundKey, skate, tallyRecalls, heatResult, coupleNum, suggestMultis, multiResult, familyOf, kindOf };
+module.exports = { dancesOf, danceLabel, rankByVotes, categoryOf, categories, roundOf, roundKey, skate, tallyRecalls, heatResult, coupleNum, suggestMultis, multiResult, familyOf, kindOf };
