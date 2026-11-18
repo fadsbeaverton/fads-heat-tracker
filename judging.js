@@ -110,4 +110,87 @@ function heatResult(d, h, rec) {
   return { n: h.n, dance: h.dance, style: h.style, time: h.time, round, key: roundKey(h), judges: judges.map((j) => ({ id: j.id, name: j.name, submitted: !!(byJ[j.id] && byJ[j.id].submitted), at: byJ[j.id] && byJ[j.id].at })), outstanding: outstanding.map((j) => j.name), contested: contested.length > 0, cats: catsOut };
 }
 
-module.exports = { categoryOf, categories, roundOf, roundKey, skate, tallyRecalls, heatResult, coupleNum };
+// ---- Multi-dance events (championships, scholarships) ----
+// Stored in comp data as d.multis = [{ id, name, heats: [n, ...] }], one heat per dance.
+// Overall winner: most 1st-place marks from all judges across all the event's dances, then most 2nds, 3rds, and so on.
+const FAMILY = [
+  ["Smooth", /^(waltz|tango|foxtrot|fox ?trot|viennese waltz|v\.? ?waltz|peabody)$/i],
+  ["Rhythm", /^(cha ?cha|rumba|east coast swing|swing|bolero|mambo|merengue|hustle|west coast swing|wcs)$/i],
+  ["Standard", /^(quickstep|slow foxtrot|international waltz|international tango)$/i],
+  ["Latin", /^(samba|jive|paso ?doble|paso)$/i],
+];
+const KNOWN_DANCES = /\b(viennese waltz|v\.? ?waltz|waltz|tango|foxtrot|fox ?trot|peabody|quickstep|cha ?cha|rumba|east coast swing|west coast swing|swing|bolero|mambo|merengue|hustle|samba|jive|paso ?doble|paso|salsa|lindy hop|nightclub two step|polka)\b/gi;
+const familyOf = (dance) => { const t = String(dance || "").trim(); for (const [f, re] of FAMILY) if (re.test(t)) return f; return ""; };
+const kindOf = (name) => /scholar/i.test(name) ? "Scholarship" : /champ/i.test(name) ? "Championship" : "Multi-dance";
+const heatMap = (d) => new Map((d.heats || []).map((h) => [h.n, h]));
+const coupleSet = (h) => (h.entries || []).map(coupleNum).sort().join(",");
+
+// Suggest groupings staff can accept with one tap. Two signals, both "obvious":
+// 1) heat names that say Championship / Scholarship (e.g. "Open Smooth Championship – Waltz"): consecutive heats with the same name once the dance is removed;
+// 2) consecutive heats on the same day with different dances of one family (Smooth, Rhythm…) and exactly the same couples (2+ couples, 3+ dances).
+function suggestMultis(d) {
+  const used = new Set((d.multis || []).flatMap((m) => m.heats || []));
+  const H = (d.heats || []).slice().sort((a, b) => a.n - b.n).filter((h) => !used.has(h.n));
+  const out = [], taken = new Set();
+  const label = (h) => [h.style, h.dance, h.level].filter(Boolean).join(" ");
+  const base = (h) => label(h).replace(KNOWN_DANCES, " ").replace(/[()\[\]\/,–—:-]+/g, " ").replace(/\s+/g, " ").trim();
+  for (let i = 0; i < H.length; i++) {
+    const h = H[i]; if (taken.has(h.n) || !/champ|scholar/i.test(label(h))) continue;
+    const b = base(h).toLowerCase(), run = [h];
+    for (let j = i + 1; j < H.length; j++) { const x = H[j]; if (x.n !== run[run.length - 1].n + 1 && x.n - run[run.length - 1].n > 2) break; if (base(x).toLowerCase() === b && (x.day || "") === (h.day || "")) run.push(x); else if (/champ|scholar/i.test(label(x))) break; }
+    if (run.length >= 2) { run.forEach((x) => taken.add(x.n)); out.push({ name: base(h).replace(/\b\w/g, (c) => c.toUpperCase()), heats: run.map((x) => x.n), dances: run.map((x) => (label(x).match(KNOWN_DANCES) || [x.dance])[0]), why: "Heat names say " + kindOf(base(h)) }); }
+  }
+  for (let i = 0; i < H.length; i++) {
+    const h = H[i]; if (taken.has(h.n)) continue;
+    const fam = familyOf(h.dance), cs = coupleSet(h);
+    if (!fam || (h.entries || []).length < 2) continue;
+    const run = [h];
+    for (let j = i + 1; j < H.length; j++) {
+      const x = H[j], prev = run[run.length - 1];
+      if (x.n !== prev.n + 1 || taken.has(x.n) || (x.day || "") !== (h.day || "") || familyOf(x.dance) !== fam || (x.style || "") !== (h.style || "") || run.some((r) => r.dance === x.dance) || coupleSet(x) !== cs) break;
+      run.push(x);
+    }
+    if (run.length >= 3) { run.forEach((x) => taken.add(x.n)); out.push({ name: [h.style, fam, "Championship"].filter(Boolean).join(" "), heats: run.map((x) => x.n), dances: run.map((x) => x.dance), why: "Same " + run[0].entries.length + " couples dance " + run.length + " " + fam + " dances in a row" }); i += run.length - 1; }
+  }
+  return out.sort((a, b) => a.heats[0] - b.heats[0]);
+}
+
+// Overall result for one multi-dance event. marksFor(h) returns the marks record for heat h's final (or undefined).
+function multiResult(d, m, marksFor) {
+  const judges = d.judges || [], hm = heatMap(d);
+  const dances = [], cats = [], byKey = new Map();
+  for (const n of m.heats || []) {
+    const h = hm.get(n);
+    if (!h) { dances.push({ n, dance: "", missing: true, full: false, submitted: 0, of: judges.length }); continue; }
+    if (roundOf(h).type === "semi") { dances.push({ n, dance: h.dance, semi: true, full: false, submitted: 0, of: judges.length }); continue; }
+    const r = heatResult(d, h, marksFor(h));
+    const submitted = r.judges.filter((j) => j.submitted).length;
+    dances.push({ n, dance: h.dance, submitted, of: judges.length, contested: r.contested, full: !r.contested || (judges.length > 0 && !r.outstanding.length) });
+    for (const c of r.cats) {
+      let cat = byKey.get(c.key);
+      if (!cat) { cat = { key: c.key, rows: new Map(), contested: 0 }; byKey.set(c.key, cat); cats.push(cat); }
+      for (const x of c.couples) { let row = cat.rows.get(x.num); if (!row) { row = { num: x.num, lead: x.lead, follow: x.follow, counts: [], dances: 0 }; cat.rows.set(x.num, row); } row.dances++; }
+      if (!c.contested) continue;
+      cat.contested++;
+      for (const places of Object.values(c.marks || {})) places.forEach((num, i) => { const row = cat.rows.get(num); if (row) row.counts[i] = (row.counts[i] || 0) + 1; });
+    }
+  }
+  const catsOut = cats.map((cat) => {
+    const rows = [...cat.rows.values()];
+    const P = Math.max(1, ...rows.map((r) => r.counts.length));
+    rows.forEach((r) => { r.counts = Array.from({ length: P }, (_, i) => r.counts[i] || 0); r.votes = r.counts.reduce((a, b) => a + b, 0); });
+    const cmp = (a, b) => { for (let i = 0; i < P; i++) if (a.counts[i] !== b.counts[i]) return b.counts[i] - a.counts[i]; return 0; };
+    rows.sort((a, b) => cmp(a, b) || (parseFloat(a.num) || 0) - (parseFloat(b.num) || 0));
+    const anyVotes = rows.some((r) => r.votes);
+    if (!cat.contested) { rows.forEach((r) => { r.place = rows.length === 1 ? 1 : null; r.tie = false; }); return { key: cat.key, places: P, rows, ties: false, uncontested: true }; }
+    rows.forEach((r, i) => {
+      r.place = !anyVotes ? null : i > 0 && cmp(rows[i - 1], r) === 0 ? rows[i - 1].place : i + 1;
+    });
+    rows.forEach((r) => { r.tie = anyVotes && rows.some((o) => o !== r && o.place === r.place); });
+    return { key: cat.key, places: P, rows, ties: rows.some((r) => r.tie) };
+  });
+  const full = dances.filter((x) => x.full).length;
+  return { id: m.id, name: m.name, kind: kindOf(m.name), heats: m.heats, dances, full, total: dances.length, complete: dances.length > 0 && full === dances.length, judges: judges.length, cats: catsOut };
+}
+
+module.exports = { categoryOf, categories, roundOf, roundKey, skate, tallyRecalls, heatResult, coupleNum, suggestMultis, multiResult, familyOf, kindOf };

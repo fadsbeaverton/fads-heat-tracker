@@ -113,6 +113,7 @@ function renumberFrom(d, start, delta) {
     if (ev.from >= start) ev.from += delta;
     if (ev.to >= start) ev.to += delta;
   }
+  for (const m of d.multis || []) m.heats = (m.heats || []).map((n) => (n >= start ? n + delta : n));
   sortHeats(d);
 }
 
@@ -211,6 +212,37 @@ function addJudge(d, b) {
   d.judges.push(j);
   return j;
 }
+// Multi-dance events (championships, scholarships): a name plus the heats that make it up, one per dance.
+function parseHeatList(v) {
+  const out = [];
+  const parts = Array.isArray(v) ? v.map(String) : String(v || "").split(/[,\s]+/);
+  for (const p of parts) {
+    const t = p.trim(); if (!t) continue;
+    const r = t.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (r) { const a = +r[1], z = +r[2]; if (z < a || z - a > 30) throw new Error("Heat range " + t + " doesn't look right"); for (let n = a; n <= z; n++) out.push(n); }
+    else if (/^\d+$/.test(t)) out.push(+t);
+    else throw new Error("Heats should look like 5-8 or 5, 6, 7, 8");
+  }
+  return [...new Set(out)];
+}
+function saveMulti(d, b, m) {
+  const name = String(b.name != null ? b.name : m ? m.name : "").trim().slice(0, 80);
+  if (!name) throw new Error("Event name is required");
+  const heats = b.heats != null ? parseHeatList(b.heats) : m.heats;
+  if (heats.length < 2) throw new Error("Pick at least two heats (one per dance)");
+  for (const n of heats) {
+    if (!heatByN(d, n)) throw new Error("Heat " + n + " doesn't exist");
+    const other = (d.multis || []).find((x) => x !== m && (x.heats || []).includes(n));
+    if (other) throw new Error("Heat " + n + " is already in " + other.name);
+  }
+  if ((d.multis || []).some((x) => x !== m && x.name.toLowerCase() === name.toLowerCase())) throw new Error("An event with that name already exists");
+  if (m) { m.name = name; m.heats = heats; return m; }
+  d.multis = d.multis || [];
+  const nums = d.multis.map((x) => Number(String(x.id || "").replace(/\D/g, "")) || 0);
+  m = { id: "m" + ((nums.length ? Math.max(...nums) : 0) + 1), name, heats };
+  d.multis.push(m);
+  return m;
+}
 function addHeat(d, b) {
   const max = maxHeat(d);
   let n = b.n != null && String(b.n).trim() !== "" ? parseInt(b.n, 10) : max + 1;
@@ -224,6 +256,7 @@ function deleteHeat(d, b) {
   const i = (d.heats || []).findIndex((h) => h.n === n);
   if (i < 0) throw new Error("Heat not found");
   d.heats.splice(i, 1);
+  for (const m of d.multis || []) m.heats = (m.heats || []).filter((x) => x !== n);
   renumberFrom(d, n + 1, -1);
 }
 
@@ -582,6 +615,9 @@ function apply(d, b) {
   else if (act === "update-judge") { const j = (d.judges || []).find((x) => x.id === b.id); if (!j) throw new Error("Judge not found"); if (b.name != null && String(b.name).trim()) j.name = String(b.name).trim().slice(0, 80); }
   else if (act === "delete-judge") { const before = (d.judges || []).length; d.judges = (d.judges || []).filter((x) => x.id !== b.id); if (d.judges.length === before) throw new Error("Judge not found"); }
   else if (act === "new-judge-code") { const j = (d.judges || []).find((x) => x.id === b.id); if (!j) throw new Error("Judge not found"); j.code = newCode(d); return { ok: true, judge: j, data: d }; }
+  else if (act === "add-multi") { const m = saveMulti(d, b); return { ok: true, multi: m, data: d }; }
+  else if (act === "update-multi") { const m = (d.multis || []).find((x) => x.id === b.id); if (!m) throw new Error("Event not found"); saveMulti(d, b, m); }
+  else if (act === "delete-multi") { const before = (d.multis || []).length; d.multis = (d.multis || []).filter((x) => x.id !== b.id); if (d.multis.length === before) throw new Error("Event not found"); }
   else if (act === "add-entry") addEntry(d, b);
   else if (act === "remove-entry") removeEntry(d, b);
   else if (act === "update-heat") updateHeat(d, b);

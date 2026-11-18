@@ -19,6 +19,7 @@ const save = () => fs.writeFile(STATE_FILE, JSON.stringify(state), () => {});
 const MARKS_FILE = path.join(__dirname, "marks.json");
 let MARKS = {};
 try { MARKS = JSON.parse(fs.readFileSync(MARKS_FILE, "utf8")) || {}; } catch {}
+const overall = () => (DATA.multis || []).map((m) => judging.multiResult(DATA, m, (h) => MARKS[judging.roundKey(h)]));
 const saveMarks = () => { state.marksVersion = (state.marksVersion || 0) + 1; fs.writeFile(MARKS_FILE, JSON.stringify(MARKS), () => {}); };
 const judgeByCode = (code) => (DATA.judges || []).find((j) => j.code === String(code || "").trim().toUpperCase()) || null;
 const heatN = (n) => DATA.heats.find((h) => h.n === parseInt(n, 10)) || null;
@@ -251,6 +252,14 @@ http.createServer(async (req, res) => {
     rows.sort((a, b) => a.n - b.n);
     return json(res, 200, { judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), heats: rows });
   }
+  if (p === "/api/results/overall" && req.method === "GET") { // championships / scholarships: most 1sts, then 2nds…
+    if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
+    return json(res, 200, { events: overall() });
+  }
+  if (p === "/api/multis/suggest" && req.method === "GET") {
+    if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });
+    return json(res, 200, { suggestions: judging.suggestMultis(DATA) });
+  }
   if (p === "/api/results/action" && req.method === "POST") {
     const b = await body(req);
     if (String(b.pin) !== PIN) return json(res, 401, { error: "Wrong PIN" });
@@ -291,11 +300,14 @@ http.createServer(async (req, res) => {
           if (c.recall) c.recall.rows.forEach((r) => lines.push(["result", rec.n, h.dance, "semi", c.key, "", r.num, r.marks, r.recalled ? "recall" : r.tieAtCut ? "tie at cutoff" : "", ""].map(q).join(",")));
         }
       }
+      for (const ev of overall()) for (const c of ev.cats) for (const r of c.rows) {
+        lines.push(["overall", ev.heats.join(" "), ev.name, ev.full + " of " + ev.total + " dances submitted", c.key, "", r.num, r.counts.map((v, i) => (i + 1) + ":" + v).join(" "), r.place == null ? "" : (r.tie ? "tie " : "") + r.place, ""].map(q).join(","));
+      }
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename=marks-${stamp}.csv`, "Cache-Control": "no-store" });
       return res.end(lines.join("\n") + "\n");
     }
     res.writeHead(200, { "Content-Type": "application/json", "Content-Disposition": `attachment; filename=marks-${stamp}.json`, "Cache-Control": "no-store" });
-    return res.end(JSON.stringify({ comp: DATA.comp && DATA.comp.name, exportedAt: Date.now(), judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), marks: MARKS }));
+    return res.end(JSON.stringify({ comp: DATA.comp && DATA.comp.name, exportedAt: Date.now(), judges: (DATA.judges || []).map((j) => ({ id: j.id, name: j.name })), marks: MARKS, multis: (DATA.multis || []).map((m) => ({ id: m.id, name: m.name, heats: m.heats })), overall: overall() }));
   }
   if (p === "/api/export" && req.method === "GET") {
     if (!isStaff(req, url)) return json(res, 401, { error: "Wrong PIN" });

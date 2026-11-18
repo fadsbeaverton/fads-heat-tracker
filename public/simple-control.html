@@ -92,6 +92,11 @@ table.mk td.pl{font-weight:800;font-size:16px}table.mk tr.rec td.pl{color:var(--
 .rnote{font-size:13px;color:var(--mut);margin-top:6px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--ink)}.chips button.ok{border-color:var(--ink)}
 .bk{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.bk a,.bk label{flex:1;text-align:center;padding:12px 10px;border:2px solid var(--line);border-radius:14px;font-size:15px;font-weight:700;color:var(--ink);text-decoration:none;cursor:pointer;background:#fff}
+.ov .ovp{font-size:14px;margin:0 0 8px}.ov .ovp.ok{font-weight:700}
+.ov .chips{margin-bottom:6px}.ov .chips button{padding:5px 8px;font-size:12px}
+.ov .ovc{font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 0}
+table.mk td.z{color:#c8c8c8}table.mk tr.win td.pl{font-size:17px}
+.ov table.mk th,.ov table.mk td{padding:6px 4px}.ov table.mk td.cn small{max-width:118px}.ov table.mk td.pl{font-size:15px}
 .hidden{display:none!important}
 body.sheet-open{overflow:hidden}
 body{background:transparent!important}body::before{content:"";position:fixed;top:calc(var(--wmTop,0px) + 16px);bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;margin:0 auto;width:min(86vw,520px);z-index:-1;pointer-events:none;background:url(/logo-bg.png) center/contain no-repeat;opacity:.1}
@@ -123,6 +128,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
     <div class="rnav"><button type="button" id="rPrev" aria-label="Previous heat">◀</button><div class="ri"><div class="rh" id="rHeat">Heat –</div><div class="rs" id="rSub"></div></div><button type="button" id="rNext" aria-label="Next heat">▶</button></div>
     <div class="rfl" id="rFloor"></div>
     <div id="rBody"></div>
+    <div class="ann" style="margin-top:22px"><div class="lbl2">Overall · Championships &amp; scholarships</div><div id="rOverall"></div></div>
     <div class="ann" style="margin-top:22px"><div class="lbl2">Heats with marks</div><div class="chips" id="rChips"></div></div>
     <div class="ann" style="margin-top:22px"><div class="lbl2">Backup</div>
       <div class="hint">Marks live on the server only until it sleeps or redeploys. Download a backup after each session; judges’ phones also re-send their own marks when they reconnect.</div>
@@ -473,11 +479,31 @@ const Results = (function () {
   async function load() {
     if (!visible()) return;
     const n = follow ? floorN : viewN;
-    const [r, sum] = await Promise.all([get("/api/results?n=" + n), get("/api/results/summary")]);
+    const [r, sum, ov] = await Promise.all([get("/api/results?n=" + n), get("/api/results/summary"), get("/api/results/overall")]);
     if (!r) return;
-    viewN = r.n; render(r, sum);
+    viewN = r.n; render(r, sum, ov);
   }
-  function render(r, sum) {
+  function renderOverall(ov) {
+    const evs = (ov && ov.events) || [];
+    if (!evs.length) return '<p class="hint">No multi-dance events yet. Group heats in Setup → Multi-dance.</p>';
+    return evs.map((ev) => {
+      let h = `<div class="rcat ov"><div class="ct"><span>${esc(ev.name)}</span><span>${esc(ev.kind)}</span></div>`;
+      h += `<div class="ovp${ev.complete ? " ok" : ""}">${ev.complete ? "✓ " : ""}${ev.full} of ${ev.total} dance${ev.total === 1 ? "" : "s"} fully submitted${ev.complete ? "" : " · provisional"}</div>`;
+      h += '<div class="chips">' + ev.dances.map((x) => `<button type="button" data-n="${x.n}" class="${x.full ? "ok" : ""}">${x.n} ${esc(x.dance || "")}${x.missing ? " (missing)" : x.semi ? " (semi)" : x.full ? " ✓" : " · " + x.submitted + "/" + x.of}</button>`).join("") + "</div>";
+      if (!ev.judges) h += '<div class="rnote">No judges yet.</div>';
+      for (const c of ev.cats) {
+        const any = c.rows.some((x) => x.votes);
+        const cols = Array.from({ length: c.places }, (_, i) => i + 1);
+        h += `<div class="ovc">${esc(c.key)} · ${c.rows.length} couple${c.rows.length === 1 ? "" : "s"}</div><div class="tw"><table class="mk"><tr><th>Place</th><th style="text-align:left">#</th>${cols.map((i) => `<th>${ord(i)}</th>`).join("")}</tr>`;
+        h += c.rows.map((x) => `<tr class="${x.place === 1 ? "win" : ""}${x.tie ? " tie" : ""}"><td class="pl">${x.place == null ? "–" : (x.tie ? "T-" : "") + ord(x.place)}</td><td class="cn">${esc(x.num)}<small>${esc([x.lead, x.follow].filter(Boolean).join(" & "))}${x.dances < ev.total ? ` · ${x.dances} of ${ev.total} dances` : ""}</small></td>${x.counts.map((v) => `<td class="${v ? "" : "z"}">${v}</td>`).join("")}</tr>`).join("");
+        h += "</table></div>";
+        const tied = c.rows.filter((x) => x.tie);
+        h += `<div class="rnote">${c.uncontested ? "Uncontested: only one couple in this category in every dance." : !any ? "No marks yet." : tied.length ? "Tied on every place count: " + [...new Set(tied.map((x) => x.place))].map((p) => "#" + tied.filter((x) => x.place === p).map((x) => x.num).join(", #") + " (" + ord(p) + ")").join("; ") + ". Staff decide." : "Most 1st-place votes wins; ties go to most 2nds, then 3rds…"}</div>`;
+      }
+      return h + "</div>";
+    }).join("");
+  }
+  function render(r, sum, ov) {
     const jn = new Map(r.judges.map((j, i) => [j.id, { ...j, ab: "J" + (i + 1) }]));
     $("#rHeat").textContent = "Heat " + r.n;
     $("#rSub").textContent = [r.dance, r.style, r.round.type === "semi" ? "Semifinal · recall " + r.round.recall : "Final"].filter(Boolean).join(" · ");
@@ -490,6 +516,8 @@ const Results = (function () {
       h += r.outstanding.length ? `<div class="wait">Waiting on ${r.outstanding.length} of ${r.judges.length}: ${r.outstanding.map(esc).join(", ")}</div>` : `<div class="wait ok">✓ All ${r.judges.length} judges submitted</div>`;
       h += '<div class="jst">' + r.judges.map((j, i) => `<span class="jchip${j.submitted ? " ok" : ""}"><span class="jn">J${i + 1} ${esc(j.name)}${j.submitted ? " ✓" : ""}</span>${j.submitted ? `<button type="button" data-unlock="${esc(j.id)}">Unlock</button>` : ""}</span>`).join("") + "</div>";
     }
+    const inEv = ((ov && ov.events) || []).filter((ev) => ev.heats.includes(r.n));
+    if (inEv.length) h += `<div class="rnote" style="margin:0 0 6px">Part of <b>${inEv.map((ev) => esc(ev.name)).join(", ")}</b> · overall below</div>`;
     for (const c of r.cats) {
       const who = (x) => esc([x.lead, x.follow].filter(Boolean).join(" & "));
       if (!c.contested) { h += `<div class="rcat"><div class="ct"><span>${esc(c.key)}</span><span>uncontested</span></div><div class="rnote">#${esc(c.couples[0].num)} ${who(c.couples[0])} · 1st</div></div>`; continue; }
@@ -505,9 +533,10 @@ const Results = (function () {
       const note = !jids.length ? "No marks yet." : c.recall ? (c.recall.tie ? `Tie at the cutoff for ${c.recall.target} recalls (${c.recall.cutMarks} marks). Decide who goes through.` : `Top ${c.recall.target} recalled.`) + (r.outstanding.length ? " Provisional." : "") : (r.outstanding.length ? "Provisional: " + jids.length + " of " + r.judges.length + " judges. " : "") + "Skating system (rules 5–8).";
       h += `<div class="rcat"><div class="ct"><span>${esc(c.key)}</span><span>${c.couples.length} couples</span></div><div class="tw"><table class="mk">${head}${rows}</table></div><div class="rnote">${esc(note)}</div></div>`;
     }
-    const sig = JSON.stringify(r) + JSON.stringify(sum);
+    const sig = JSON.stringify(r) + JSON.stringify(sum) + JSON.stringify(ov);
     if (sig === lastSig) return; lastSig = sig;
     $("#rBody").innerHTML = h;
+    $("#rOverall").innerHTML = renderOverall(ov);
     const rows = (sum && sum.heats) || [];
     $("#rChips").innerHTML = rows.length ? rows.map((x) => `<button type="button" data-n="${x.n}" class="${x.submitted >= x.of && x.of ? "ok" : ""}">${x.n}${x.round && x.round.type === "semi" ? " semi" : ""} · ${x.submitted}/${x.of}${x.current ? "" : " (old round)"}</button>`).join("") : '<span class="hint">None yet.</span>';
   }
@@ -516,6 +545,7 @@ const Results = (function () {
   $("#rNext").onclick = () => viewN < total && go(viewN + 1);
   $("#rFloor").onclick = (e) => { if (e.target.id === "rToFloor") go(floorN); };
   $("#rChips").onclick = (e) => { const b = e.target.closest("[data-n]"); if (b) go(+b.dataset.n); };
+  $("#rOverall").onclick = (e) => { const b = e.target.closest("[data-n]"); if (b) { go(+b.dataset.n); scrollTo({ top: 0, behavior: "smooth" }); } };
   $("#rBody").onclick = async (e) => {
     const b = e.target.closest("[data-unlock]"); if (!b) return;
     if (!confirm("Unlock this judge's marks for Heat " + viewN + "? They can change them and submit again.")) return;
