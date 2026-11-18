@@ -246,10 +246,11 @@ function render() {
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
   rowDay = null;
   const pastHtml = pastHeats.map((h) => dayHdr(h) + heatRow(h, true)).join("");
-  // Awards sit in the list after the heat they follow (like Admin). Once the dancer is done, they go at the bottom, after their heats.
-  let nextHtml = nx ? before.map(awardRow).join("") : "";
+  // Awards always sit at the bottom of the list, after all of the dancer's heats, in time order.
+  const awSorted = aw.slice().sort((a, b) => a.afterHeat - b.afterHeat);
+  let nextHtml = "";
   if (nx) nextHtml += dayHdr(nx);
-  if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>` + later.map(awardRow).join("");
+  if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>`;
   else {
     const k = nx.n - cur, cls = k === 0 ? "now" : k === 1 ? "next" : k <= 5 ? "deck" : "";
     const tag = k === 0 ? "Dancing now" : k === 1 ? "On deck" : k <= 5 ? "Dancing soon!" : "Your next heat";
@@ -265,19 +266,15 @@ function render() {
     let restHtml = "";
     if (!nx) {
       $("#past").innerHTML = "";
-      restHtml = pastHtml + before.map(awardRow).join("");
+      restHtml = pastHtml + awSorted.map(awardRow).join("");
       $("#restH").textContent = "Your heats today";
-      $("#restH").classList.toggle("hidden", !pastHeats.length && !before.length);
+      $("#restH").classList.toggle("hidden", !pastHeats.length && !awSorted.length);
     } else {
       $("#past").innerHTML = pastHtml;
-      const pending = later.slice();
-      for (const h of restHeats) {
-        while (pending.length && pending[0].afterHeat < h.n) restHtml += awardRow(pending.shift());
-        restHtml += dayHdr(h) + heatRow(h, false);
-      }
-      restHtml += pending.map(awardRow).join("");
+      for (const h of restHeats) restHtml += dayHdr(h) + heatRow(h, false);
+      restHtml += awSorted.map(awardRow).join("");
       $("#restH").textContent = "Your upcoming heats";
-      $("#restH").classList.toggle("hidden", !restHeats.length && !later.length);
+      $("#restH").classList.toggle("hidden", !restHeats.length && !awSorted.length);
     }
     $("#rest").innerHTML = restHtml;
     listSig = sig;
