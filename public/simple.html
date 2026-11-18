@@ -34,6 +34,8 @@ input:focus{border-color:var(--ink)}input::placeholder{letter-spacing:.05em;font
 h2{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 2px}
 .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:16px}.row span:last-child{color:var(--mut);white-space:nowrap}
 .award{display:flex;justify-content:center;align-items:center;width:fit-content;margin:6px auto 10px;padding:6px 36px;border:1.5px solid #e2e2e2;border-radius:999px;background:#f2f2f2;font-size:13px;font-weight:600;color:#444;white-space:nowrap}.award.now{background:#fff;border-color:var(--ink);color:var(--ink)}
+.award.brkfix{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;margin:0;max-width:calc(100vw - 24px);padding:8px 22px;box-shadow:0 2px 10px rgba(0,0,0,.12)}.award.brkfix span{overflow:hidden;text-overflow:ellipsis}
+body.has-brk #main{padding-bottom:calc(70px + env(safe-area-inset-bottom,0px))}body.has-brk .recenter{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .done{font-size:22px;font-weight:700;padding:24px 0}
 .celebrate{text-align:center;padding:36px 8px 30px}.celebrate .cemoji{font-size:64px;line-height:1}.celebrate .ctitle{font-size:32px;font-weight:800;line-height:1.15;margin-top:14px}.celebrate .csub{font-size:18px;color:var(--mut);margin-top:10px}
 .row.past{color:var(--mut)}
@@ -84,6 +86,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
 </div>
 </div>
 <button type="button" id="recenter" class="recenter hidden">Back to my next heat</button>
+<div id="brkBar" class="award brkfix hidden"></div>
 <script src="/live.js"></script><script src="/dances.js"></script>
 <script>
 const BREAK_T = { awards: "🏆 Awards", lunch: "🍽 Lunch", dinner: "🍽 Dinner", break: "Break" };
@@ -169,14 +172,15 @@ function cardInView() {
   const el = $("#card");
   if (!el) return false;
   const r = el.getBoundingClientRect();
-  return r.bottom > stickyCut() - 2 && r.top < window.innerHeight - 16;
+  return r.bottom > stickyCut() - 2 && r.top < window.innerHeight - (document.body.classList.contains("has-brk") ? 70 : 16);
 }
-function hideRecenter() { const b = $("#recenter"); if (b) b.classList.add("hidden"); }
+function hideRecenter() { const b = $("#recenter"); if (b) b.classList.add("hidden"); syncBrk(); }
 function syncRecenter() {
   const btn = $("#recenter");
   if (!btn) return;
   const onMain = !!(me && view !== "sched" && !$("#main").classList.contains("hidden"));
   btn.classList.toggle("hidden", !(onMain && $("#card") && !cardInView()));
+  syncBrk();
 }
 function onScrollOrResize() {
   if (recRaf) return;
@@ -199,7 +203,7 @@ function scrollToFocus(key) {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const rect = el.getBoundingClientRect();
     const sticky = stickyCut();
-    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - 16) { syncRecenter(); return; }
+    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - (document.body.classList.contains("has-brk") ? 70 : 16)) { syncRecenter(); return; }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: Math.max(0, rect.top + window.scrollY - sticky), behavior: reduce ? "auto" : "smooth" });
     syncRecenter();
@@ -270,22 +274,31 @@ function render() {
     let restHtml = "";
     if (!nx) {
       $("#past").innerHTML = "";
-      restHtml = pastHtml + awSorted.map(awardRow).join("");
+      restHtml = pastHtml;
       $("#restH").textContent = "Your heats today";
-      $("#restH").classList.toggle("hidden", !pastHeats.length && !awSorted.length);
+      $("#restH").classList.toggle("hidden", !pastHeats.length);
     } else {
       $("#past").innerHTML = pastHtml;
       for (const h of restHeats) restHtml += dayHdr(h) + heatRow(h, false);
-      restHtml += awSorted.map(awardRow).join("");
       $("#restH").textContent = "Your upcoming heats";
-      $("#restH").classList.toggle("hidden", !restHeats.length && !awSorted.length);
+      $("#restH").classList.toggle("hidden", !restHeats.length);
     }
     $("#rest").innerHTML = restHtml;
     listSig = sig;
     if (sameFocus) window.scrollTo(0, y);
   }
+  brkNow = awSorted[0] || null;
+  syncBrk();
   scrollToFocus(focus);
   syncRecenter();
+}
+// The single break notice is fixed to the bottom of the screen (not in the scrolling list).
+let brkNow = null;
+function syncBrk() {
+  const bar = $("#brkBar"); if (!bar) return;
+  const on = !!(brkNow && me && view !== "sched" && !$("#main").classList.contains("hidden"));
+  bar.classList.toggle("hidden", !on); document.body.classList.toggle("has-brk", on);
+  if (on) { const t = document.createElement("div"); t.innerHTML = awardRow(brkNow); const el = t.firstElementChild; bar.className = el.className + " brkfix"; bar.innerHTML = el.innerHTML; }
 }
 function evStatus(ev, i) {
   const cur = live ? live.currentHeat : 0;
