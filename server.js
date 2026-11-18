@@ -64,9 +64,20 @@ function judgeHeat(j, h) {
 }
 
 // Public data: the heat program only (no students, no entries, no codes). Full data needs the staff PIN.
+// Scheduled breaks (awards, lunch, dinner, short breaks…) as clients show them.
+const BREAK_ICON = { awards: "🏆 ", lunch: "🍽 ", dinner: "🍽 " };
+const breakPub = (b) => ({ id: b.id, type: b.type, afterHeat: b.afterHeat, minutes: b.minutes, time: b.time, minute: b.minute, day: b.day, title: (BREAK_ICON[b.type] || "") + store.breakLabel(b) });
+// Schedule view: the event list with breaks merged in at their place in the day.
+function eventsWithBreaks() {
+  const dayIx = new Map(); for (const h of DATA.heats) if (h.day && !dayIx.has(h.day)) dayIx.set(h.day, dayIx.size);
+  const key = (e) => [e.day ? (dayIx.get(e.day) ?? 99) : 0, e.minute != null ? e.minute : 0];
+  const all = (DATA.events || []).map((e, i) => ({ e, i })).concat((DATA.breaks || []).map((b, i) => ({ e: { title: breakPub(b).title, time: b.time, minute: b.minute, afterHeat: b.afterHeat, day: b.day, kind: "break" }, i: 1e6 + i })));
+  return all.sort((a, b) => { const x = key(a.e), y = key(b.e); return x[0] - y[0] || x[1] - y[1] || a.i - b.i; }).map((x) => x.e);
+}
 function publicData() {
+  const breaks = (DATA.breaks || []).map(breakPub);
   return { comp: DATA.comp, heatMinutes: DATA.heatMinutes, schedule: DATA.schedule,
-    events: DATA.events, awards: DATA.awards,
+    events: eventsWithBreaks(), breaks, awards: breaks.filter((b) => b.type === "awards"),
     heats: DATA.heats.map(({ n, style, dance, level, age, time, session, day }) => ({ n, style, dance, level, age, time, session, day })) };
 }
 let PUBLIC_DATA = publicData();
@@ -95,10 +106,11 @@ function pace() { const a = (state.intervals || []).slice(-8).sort((x, y) => x -
 const DEMO = process.env.DEMO === "1";
 function clockMin() { const d = new Date(); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; }
 const nowMin = () => clockMin() + (DEMO ? (state.anchorShift || 0) : 0);
-const awardAfter = (n) => DATA.awards.find((a) => a.afterHeat === n) || null;
+// state.awardsAfter = the heat whose scheduled break is happening now (awards, lunch, dinner, break…). Name kept for saved state.
+const awardAfter = (n) => (DATA.breaks || []).find((a) => a.afterHeat === n) || null;
 const liveAwards = () => {
   const a = state.awardsAfter != null ? awardAfter(state.awardsAfter) : null;
-  return a ? { afterHeat: a.afterHeat, time: a.time, minute: a.minute } : null;
+  return a ? breakPub(a) : null;
 };
 function scheduleOffset() {
   if (state.startedAtMin == null) return 0;
@@ -180,6 +192,9 @@ http.createServer(async (req, res) => {
       if (state.awardsAfter != null) state.awardsAfter = null;
       else if (state.currentHeat > 1 && awardAfter(state.currentHeat - 1)) { state.currentHeat = state.currentHeat - 1; state.awardsAfter = state.currentHeat; }
       else state.currentHeat = Math.max(1, state.currentHeat - 1);
+    } else if (b.breakAfter != null) { // start a scheduled break from the Admin list
+      const n = parseInt(b.breakAfter, 10); if (!awardAfter(n)) return json(res, 400, { error: "No break after that heat" });
+      state.currentHeat = n; state.awardsAfter = n;
     } else if (b.heat != null) { const h = parseInt(b.heat, 10); if (!(h >= 1 && h <= max)) return json(res, 400, { error: "Heat out of range" }); state.currentHeat = h; state.awardsAfter = null; }
     if (typeof b.announcement === "string") {
       const t = b.announcement.slice(0, 200).trim();

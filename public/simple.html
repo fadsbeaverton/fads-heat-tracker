@@ -13,7 +13,7 @@
 .floor{position:sticky;top:calc(var(--topH) + var(--annH,0px));z-index:5;background:#fff;box-shadow:0 -40px 0 40px #fff;margin:0 0 14px;border:2px solid var(--ink);border-radius:16px;padding:8px 16px 8px}
 .floor .fl1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;height:18px;line-height:18px}
 .floor small{display:block;flex-shrink:0;font-size:12px;line-height:18px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.floor b{display:block;font-size:40px;height:46px;line-height:46px;font-weight:800;letter-spacing:-.02em;margin-top:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.floor.awards b{font-size:34px;letter-spacing:-.02em}
+.floor b{display:block;font-size:40px;height:46px;line-height:46px;font-weight:800;letter-spacing:-.02em;margin-top:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.floor.awards b{font-size:34px;letter-spacing:-.02em}.floor.awards b.long{font-size:26px}
 .floor .d{min-width:0;font-size:15px;font-weight:600;color:var(--ink);line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}.floor .l{font-size:19px;color:var(--mut);margin-top:2px}
 .signin{margin-top:16vh}.signin h1{font-size:30px;margin:0 0 6px}.signin p{color:var(--mut);margin:0 0 22px}
 input{width:100%;font-size:28px;padding:16px 18px;border:2px solid var(--line);border-radius:14px;outline:none;text-align:center;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
@@ -86,6 +86,8 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
 <button type="button" id="recenter" class="recenter hidden">Back to my next heat</button>
 <script src="/live.js"></script><script src="/dances.js"></script>
 <script>
+const BREAK_T = { awards: "🏆 Awards", lunch: "🍽 Lunch", dinner: "🍽 Dinner", break: "Break" };
+const brkTitle = (b) => (b && (b.title || BREAK_T[b.type] || b.label)) || "🏆 Awards";
 function abbr(d) { return window.Dances ? Dances.label(String(d || "").replace(/east coast swing/gi, "E.C. Swing")) : String(d || ""); }
 // Privacy: this page never receives other dancers' heats. It gets only public live info
 // (current heat, dance, level), this dancer's own heats from /api/me, and the public day schedule.
@@ -98,7 +100,7 @@ const sched = () => { const o = (live && live.scheduleOffsetMin) || 0; if (Math.
 let me = null, live = null, started = false, view = "home", events = [], awards = [], lastAnn = null, dataVer = null, focusKey = null, listSig = null, recRaf = 0;
 async function loadProgram() {
   const d = await fetch("/api/data", { cache: "no-store" }).then((r) => r.json());
-  events = d.events || []; awards = d.awards || [];
+  events = d.events || []; awards = d.breaks || d.awards || []; // scheduled breaks: awards, lunch, dinner, short breaks…
 }
 async function refreshMe() {
   const code = localStorage.getItem("simpleCode");
@@ -147,7 +149,7 @@ started = true; Live.start(); }
 function awardRow(a) {
   const on = live && live.awards && live.awards.afterHeat === a.afterHeat;
   const at = a.time ? " · " + esc(String(a.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
-  return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)}${at} 🏆</span></div>`;
+  return `<div class="award${on ? " now" : ""}"><span>${esc(brkTitle(a))} - after Heat ${Number(a.afterHeat)}${at}</span></div>`;
 }
 // Multi-day comps: heats carry a day label ("Fri, Dec 4"); single-day comps have none and render exactly as before.
 const sameDay = (h) => !h.day || !live || !live.now || !live.now.day || h.day === live.now.day;
@@ -231,7 +233,8 @@ function render() {
     const onAwards = !!live.awards;
     $("#nowNum").closest(".floor").classList.toggle("awards", onAwards);
     if (onAwards) {
-      $("#nowNum").textContent = "🏆 Awards";
+      $("#nowNum").textContent = brkTitle(live.awards);
+      $("#nowNum").classList.toggle("long", brkTitle(live.awards).length > 11);
       $("#nowDance").textContent = "after Heat " + Number(live.awards.afterHeat);
     } else {
       $("#nowNum").textContent = "Heat " + cur;
@@ -246,8 +249,8 @@ function render() {
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
   rowDay = null;
   const pastHtml = pastHeats.map((h) => dayHdr(h) + heatRow(h, true)).join("");
-  // One awards pill, always at the bottom of the list: the current awards, or else the next upcoming one.
-  // When it's over, the next upcoming award takes its place.
+  // One notice, always at the bottom of the list: the scheduled break happening now (awards, lunch, dinner, break…),
+  // or else the next upcoming one. When it's over, the next one takes its place.
   const awSorted = aw.slice().sort((a, b) => a.afterHeat - b.afterHeat).slice(0, 1);
   let nextHtml = "";
   if (nx) nextHtml += dayHdr(nx);

@@ -44,7 +44,7 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .heat{border:2px solid var(--line);border-radius:16px;padding:12px 14px;margin:0 0 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .heat.cur{border-color:var(--ink)}
 .heat.past,.heat.past .nm,.heat.past .cps,.heat.past .cp,.heat.past .who{color:var(--mut)}
-.awrow{display:flex;justify-content:center;align-items:center;gap:8px;width:fit-content;margin:2px auto 12px;background:#f2f2f2;border:1.5px solid #e2e2e2;border-radius:999px;padding:6px 36px;font-weight:600;font-size:13px;color:#444}.awrow.cur{border-color:var(--ink);background:#fff;color:var(--ink)}.awrow .onfl{font-size:10px}
+.awrow .awgo{font-size:11px;font-weight:700;color:var(--mut);text-decoration:underline}.awrow{cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;width:fit-content;margin:2px auto 12px;background:#f2f2f2;border:1.5px solid #e2e2e2;border-radius:999px;padding:6px 36px;font-weight:600;font-size:13px;color:#444}.awrow.cur{border-color:var(--ink);background:#fff;color:var(--ink)}.awrow .onfl{font-size:10px}
 .heat .nm{font-weight:700}
 .heats .dayh{color:var(--ink);font-weight:800;margin:18px 0 10px}
 .more{display:block;width:100%;margin:0 0 10px;padding:12px;background:#fff;border:2px dashed var(--line);border-radius:16px;color:var(--mut);font-size:15px;font-weight:700}
@@ -220,6 +220,8 @@ async function admin(body) {
   if (j.data) D = j.data;
   return j;
 }
+const BREAK_T = { awards: "🏆 Awards", lunch: "🍽 Lunch", dinner: "🍽 Dinner", break: "Break" };
+const brkTitle = (b) => (b && (b.title || BREAK_T[b.type] || b.label)) || "🏆 Awards";
 function abbr(d) { return Dances.label(String(d || "").replace(/east coast swing/gi, "E.C. Swing")); }
 function coupleLine(e) {
   const s = stuById(e.studentId);
@@ -267,10 +269,10 @@ function renderList() {
     const bits = ["Heat " + h.n + (h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "")];
     if (h.dance) bits.push(esc(abbr(h.dance)));
 
-    const aws = (D.awards || []).filter((a) => Number(a.afterHeat) === h.n).map((a) => {
+    const aws = (D.breaks || D.awards || []).filter((a) => Number(a.afterHeat) === h.n).map((a) => {
       const aon = onAwards && Number(a.afterHeat) === awAfter;
       const at = a.time ? " - " + esc(String(a.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
-      return `<div class="awrow${aon ? " cur" : ""}" data-aw="${h.n}"><span>🏆 Awards${at} 🏆</span>${aon ? '<span class="onfl">Now</span>' : ""}</div>`;
+      return `<div class="awrow${aon ? " cur" : ""}" data-aw="${h.n}" role="button"><span>${esc(brkTitle(a))}${at}${a.minutes ? " · " + Number(a.minutes) + " min" : ""}</span>${aon ? '<span class="onfl">Now · End</span>' : '<span class="awgo">Start</span>'}</div>`;
     }).join("");
     return dayHd + `<div class="heat${on ? " cur" : past ? " past" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>` + aws;
   }).join("") + moreBtn("after", hiddenAfter) || `<p class="hint">No heats yet.</p>`;
@@ -400,6 +402,13 @@ $("#annClear").onclick = () => send({ announcement: "" }).then((ok) => ok && ($(
 $("#heatList").onclick = (e) => {
   const more = e.target.closest("[data-more]");
   if (more) { const y = window.scrollY, h0 = document.documentElement.scrollHeight; if (more.dataset.more === "before") winBefore += 100; else winAfter += 100; renderList(); if (more.dataset.more === "before") window.scrollTo(0, y + document.documentElement.scrollHeight - h0); return; }
+  const aw = e.target.closest(".awrow");
+  if (aw) { // start or end a scheduled break, like awards
+    const n = +aw.dataset.aw, b = (D.breaks || []).find((x) => x.afterHeat === n), t = brkTitle(b).replace(/^\S+ (?=\w)/u, "");
+    if (onAwards && awAfter === n) { if (confirm("End " + t + " and go to Heat " + Math.min(n + 1, total) + "?")) send({ action: "next" }); }
+    else if (confirm("Start " + t + " (after Heat " + n + ") now?")) send({ breakAfter: n });
+    return;
+  }
   const item = e.target.closest(".heat"); if (item) openSheet(+item.dataset.n); };
 $("#sheetBg").onclick = (e) => { if (e.target === $("#sheetBg")) closeSheet(); };
 $("#sheetClose").onclick = () => closeSheet();
@@ -448,7 +457,7 @@ Live.onStatus((st) => { $("#dot").className = "dot " + st; $("#liveTxt").textCon
 let ver = null;
 Live.onState((st) => {
   if (st.awards) {
-    $("#num").innerHTML = `🏆 Awards<span class="aw2">after Heat ${Number(st.awards.afterHeat)}</span>`; $("#num").classList.add("awards");
+    $("#num").innerHTML = `${esc(brkTitle(st.awards))}<span class="aw2">after Heat ${Number(st.awards.afterHeat)}</span>`; $("#num").classList.add("awards");
     $("#of").textContent = "after Heat " + st.awards.afterHeat;
     onAwards = true; awAfter = Number(st.awards.afterHeat);
   } else {

@@ -31,7 +31,88 @@ function stamp(obj) {
   return obj;
 }
 
-function load() {
+// ---- Scheduled breaks: awards, lunch, dinner, short breaks, costume changes… all "after Heat N" with a length in minutes. ----
+// d.breaks = [{ id, type: "awards"|"lunch"|"dinner"|"break"|"custom", label, afterHeat, minutes, minute, time, day }]
+// A break starts when its heat ends (heat time + heatMinutes). Adding / lengthening a break pushes later heats that day back.
+const BREAK_LABELS = { awards: "Awards", lunch: "Lunch", dinner: "Dinner", break: "Break" };
+const breakTypeOf = (t) => { const x = String(t || "").toLowerCase(); return /award/.test(x) ? "awards" : /lunch/.test(x) ? "lunch" : /dinner|supper/.test(x) ? "dinner" : /^(short )?break$|bathroom|rest/.test(x) ? "break" : "custom"; };
+const heatLen = (d) => Number(d.heatMinutes) > 0 ? Number(d.heatMinutes) : 2;
+function placeBreak(d, b) { const h = heatByN(d, b.afterHeat); if (h && h.minute != null && h.time) { b.minute = h.minute + heatLen(d); b.time = fmt(b.minute); } if (h && h.day) b.day = h.day; else delete b.day; return b; }
+function placeBreaks(d) { for (const b of d.breaks || []) placeBreak(d, b); d.breaks = (d.breaks || []).sort((a, c) => a.afterHeat - c.afterHeat); }
+// Move everything scheduled after heat n on the same day by delta minutes (heats, schedule blocks and points, other breaks).
+function shiftAfter(d, n, delta) {
+  if (!delta) return;
+  const h0 = heatByN(d, n); if (!h0) return;
+  const day = h0.day || null, sameDay = (x) => (x.day || null) === day;
+  const startMin = (h0.minute || 0) + heatLen(d);
+  const mv = (o) => { if (o.minute != null) { o.minute += delta; o.time = fmt(o.minute); } else if (o.time) { const m = toMin(o.time); if (m != null) o.time = fmt(m + delta); } if (o.end) { const m = toMin(o.end); if (m != null) o.end = fmt(m + delta); } };
+  for (const h of d.heats || []) if (h.n > n && sameDay(h) && h.time) mv(h);
+  for (const ev of d.events || []) if (sameDay(ev) && (ev.from != null ? ev.from > n : ev.minute != null && ev.minute >= startMin)) mv(ev);
+  for (const sc of d.schedule || []) {
+    if (!sameDay(sc)) continue;
+    if (sc.from != null ? sc.from > n : sc.afterHeat != null && sc.afterHeat > n) mv(sc);
+    else if (sc.from != null && sc.from <= n && sc.to > n && sc.end) { const m = toMin(sc.end); if (m != null) sc.end = fmt(m + delta); } // block that contains the break: it ends later
+  }
+  placeBreaks(d);
+}
+// One-time migration: old award entries and "break" schedule rows (costume change) become breaks. Times don't change:
+// the printed heat times already include those gaps. Their duplicate point events are dropped from d.events
+// (the schedule view gets breaks merged back in, always up to date).
+function migrateBreaks(d) {
+  if (!d) return d;
+  let changed = false;
+  if (!Array.isArray(d.breaks)) {
+    d.breaks = []; changed = true;
+    for (const sc of d.schedule || []) {
+      if (sc.afterHeat == null || sc.kind === "heats") continue;
+      const st = toMin(sc.time), en = toMin(sc.end);
+      const type = sc.kind === "awards" ? "awards" : breakTypeOf(sc.title);
+      d.breaks.push({ type, ...(type === "custom" ? { label: sc.title } : {}), afterHeat: sc.afterHeat, minutes: st != null && en != null && en > st ? en - st : 15 });
+    }
+  }
+  if (Array.isArray(d.awards)) {
+    for (const a of d.awards) {
+      if (d.breaks.some((b) => b.afterHeat === a.afterHeat)) continue;
+      d.breaks.push({ type: "awards", afterHeat: a.afterHeat, minutes: 15 });
+    }
+    delete d.awards; changed = true;
+  }
+  let id = Math.max(0, ...d.breaks.map((b) => Number(String(b.id || "").replace(/\D/g, "")) || 0));
+  for (const b of d.breaks) if (!b.id) { b.id = "b" + (++id); changed = true; }
+  placeBreaks(d);
+  if (changed && d.events) {
+    const hit = (ev) => ev.from == null && d.breaks.some((b) => b.minute === ev.minute && (b.day || null) === (ev.day || null));
+    d.events = d.events.filter((ev) => !hit(ev));
+  }
+  return d;
+}
+function breakLabel(b) { return b.type === "custom" ? (b.label || "Break") : BREAK_LABELS[b.type] || "Break"; }
+function saveBreak(d, body, b) {
+  const type = ["awards", "lunch", "dinner", "break", "custom"].includes(body.type) ? body.type : body.type != null ? breakTypeOf(body.type) : (b ? b.type : "break");
+  const label = String(body.label != null ? body.label : (b && b.label) || "").trim().slice(0, 40);
+  if (type === "custom" && !label) throw new Error("Type a name for this break");
+  const afterHeat = body.afterHeat != null && String(body.afterHeat).trim() !== "" ? parseInt(body.afterHeat, 10) : b ? b.afterHeat : NaN;
+  if (!heatByN(d, afterHeat)) throw new Error("After heat must be an existing heat");
+  const minutes = body.minutes != null && String(body.minutes).trim() !== "" ? parseInt(body.minutes, 10) : b ? b.minutes : 15;
+  if (!(minutes >= 1 && minutes <= 240)) throw new Error("Minutes must be 1–240");
+  d.breaks = d.breaks || [];
+  if (d.breaks.some((x) => x !== b && x.afterHeat === afterHeat)) throw new Error("There's already a break after heat " + afterHeat + ". Edit that one instead.");
+  if (b) shiftAfter(d, b.afterHeat, -b.minutes);
+  if (!b) { const id = Math.max(0, ...d.breaks.map((x) => Number(String(x.id || "").replace(/\D/g, "")) || 0)) + 1; b = { id: "b" + id }; d.breaks.push(b); }
+  b.type = type; if (type === "custom") b.label = label; else delete b.label;
+  b.afterHeat = afterHeat; b.minutes = minutes;
+  shiftAfter(d, afterHeat, minutes);
+  placeBreaks(d);
+  return b;
+}
+function deleteBreak(d, body) {
+  const b = (d.breaks || []).find((x) => x.id === body.id); if (!b) throw new Error("Break not found");
+  shiftAfter(d, b.afterHeat, -b.minutes);
+  d.breaks = d.breaks.filter((x) => x !== b);
+}
+
+function load() { return migrateBreaks(loadRaw()); }
+function loadRaw() {
   try {
     const d = JSON.parse(fs.readFileSync(FILE, "utf8"));
     if (d && Array.isArray(d.heats) && Array.isArray(d.students)) return d;
@@ -109,6 +190,7 @@ function ensureHeat(d, n, fields) {
 function renumberFrom(d, start, delta) {
   for (const h of d.heats) if (h.n >= start) h.n += delta;
   for (const a of d.awards || []) if (a.afterHeat >= start) a.afterHeat += delta;
+  for (const b of d.breaks || []) if (b.afterHeat >= start) b.afterHeat += delta;
   for (const ev of d.events || []) {
     if (ev.from >= start) ev.from += delta;
     if (ev.to >= start) ev.to += delta;
@@ -256,6 +338,7 @@ function deleteHeat(d, b) {
   const i = (d.heats || []).findIndex((h) => h.n === n);
   if (i < 0) throw new Error("Heat not found");
   d.heats.splice(i, 1);
+  d.breaks = (d.breaks || []).filter((b) => b.afterHeat !== n);
   for (const m of d.multis || []) m.heats = (m.heats || []).filter((x) => x !== n);
   renumberFrom(d, n + 1, -1);
 }
@@ -351,6 +434,7 @@ function classify(o) {
   const typ = (o.type || "").toLowerCase();
   if (typ === "schedule" || typ === "event") return "schedule";
   if (typ === "award" || typ === "awards") return "award";
+  if (typ === "break" || typ === "lunch" || typ === "dinner") return "break";
   if (typ === "entry" || typ === "heat") return "entry";
   if (o.event && !o.student && !o.heat) return "schedule";
   if ((o.afterheat || o.after) && !o.student) return "award";
@@ -363,7 +447,7 @@ function collectImport(d, entryRows, scheduleRows, awardRows) {
   const heats = new Map();
   const entries = [];
   const events = [];
-  const awards = [];
+  const awards = [], breaks = [];
   const existingByName = new Map((d.students || []).map((s) => [s.name.toLowerCase(), s]));
 
   function eatEntry(o, line) {
@@ -406,10 +490,18 @@ function collectImport(d, entryRows, scheduleRows, awardRows) {
     awards.push(a);
   }
 
+  function eatBreak(o, line) {
+    const afterHeat = parseInt(o.afterheat || o.after || o.heat, 10);
+    if (!(afterHeat >= 1)) { errors.push("Break row " + line + ": missing After Heat"); return; }
+    const label = o.event || o.title || o.name || o.type || "Break";
+    const type = breakTypeOf(label);
+    breaks.push({ type, ...(type === "custom" ? { label } : {}), afterHeat, minutes: parseInt(o.minutes || o.duration, 10) || 15 });
+  }
   entryRows.forEach((o, i) => {
     const kind = classify(o);
     const line = i + 2;
-    if (kind === "schedule") eatSched(o, line);
+    if (kind === "break") eatBreak(o, line);
+    else if (kind === "schedule") eatSched(o, line);
     else if (kind === "award") eatAward(o, line);
     else eatEntry(o, line);
   });
@@ -432,12 +524,13 @@ function collectImport(d, entryRows, scheduleRows, awardRows) {
       events: events.length, awards: awards.length,
       errors, warnings,
     },
-    _payload: { students, heats, entries: uniq, events, awards },
+    _payload: { students, heats, entries: uniq, events, awards, breaks },
   };
 }
 
 function applyImport(d, payload, mode) {
   const { students, heats, entries, events, awards } = payload;
+  const newBreaks = payload.breaks || [];
   mode = mode === "merge" ? "merge" : "replace";
   const existingByName = new Map((d.students || []).map((s) => [s.name.toLowerCase(), s]));
   const nameToStudent = new Map();
@@ -465,8 +558,10 @@ function applyImport(d, payload, mode) {
       ensureHeat(d, h.n, { dance: h.dance, style: h.style, time: h.time, level: h.level });
     }
     if (events.length) d.events = events.slice().sort((a, b) => a.minute - b.minute);
+    if (awards.length || newBreaks.length) d.breaks = (d.breaks || []).filter((b) => !(awards.length && b.type === "awards") && !newBreaks.some((x) => x.afterHeat === b.afterHeat));
     if (awards.length) d.awards = awards.slice().sort((a, b) => a.afterHeat - b.afterHeat);
   } else {
+    if (newBreaks.length) d.breaks = (d.breaks || []).filter((b) => !newBreaks.some((x) => x.afterHeat === b.afterHeat));
     for (const [key, info] of students) {
       let s = existingByName.get(key);
       if (s) {
@@ -509,6 +604,12 @@ function applyImport(d, payload, mode) {
     h.entries = h.entries || [];
     h.entries.push({ studentId: s.id, proId: pro ? pro.id : (s.proId || ""), couple, ...(e.level ? { level: e.level } : {}), ...(e.number ? { number: e.number } : {}) });
   }
+  // Imported award rows become awards breaks; imported break rows are added as-is (the file's times already include them).
+  d.breaks = (d.breaks || []).concat(newBreaks.map((b) => ({ ...b })));
+  if (d.awards) { d.breaks = d.breaks.filter((b) => !(b.type === "awards" && d.awards.some((a) => a.afterHeat === b.afterHeat))); for (const a of d.awards) d.breaks.push({ type: "awards", afterHeat: a.afterHeat, minutes: 15 }); delete d.awards; }
+  let bid = Math.max(0, ...d.breaks.map((b) => Number(String(b.id || "").replace(/\D/g, "")) || 0));
+  for (const b of d.breaks) if (!b.id) b.id = "b" + (++bid);
+  placeBreaks(d);
 }
 
 function csvEscape(s) {
@@ -534,8 +635,9 @@ function exportCsv(d) {
   for (const ev of d.events || []) {
     lines.push(["schedule", "", ev.time || "", "", "", "", "", "", "", ev.title || "", ""].map(csvEscape).join(","));
   }
-  for (const a of d.awards || []) {
-    lines.push(["award", "", a.time || "", "", "", "", "", "", "", "", a.afterHeat].map(csvEscape).join(","));
+  for (const b of d.breaks || []) {
+    if (b.type === "awards") lines.push(["award", "", b.time || "", "", "", "", "", "", "", "", b.afterHeat].map(csvEscape).join(","));
+    else lines.push(["break", "", b.time || "", "", "", "", "", "", "", breakLabel(b), b.afterHeat].map(csvEscape).join(","));
   }
   return lines.join("\r\n") + "\r\n";
 }
@@ -626,6 +728,9 @@ function apply(d, b) {
   else if (act === "add-event") addEvent(d, b);
   else if (act === "update-event") updateEvent(d, b);
   else if (act === "delete-event") deleteEvent(d, b);
+  else if (act === "add-break") { const x = saveBreak(d, b); return { ok: true, break: x, data: d }; }
+  else if (act === "update-break") { const x = (d.breaks || []).find((y) => y.id === b.id); if (!x) throw new Error("Break not found"); saveBreak(d, b, x); }
+  else if (act === "delete-break") deleteBreak(d, b);
   else if (act === "add-award") addAward(d, b);
   else if (act === "update-award") updateAward(d, b);
   else if (act === "delete-award") deleteAward(d, b);
@@ -633,4 +738,4 @@ function apply(d, b) {
   return { ok: true, data: d };
 }
 
-module.exports = { load, save, apply, exportCsv, toMin, fmt, ALPHA, FILE };
+module.exports = { load, save, apply, exportCsv, toMin, fmt, ALPHA, FILE, migrateBreaks, breakLabel };

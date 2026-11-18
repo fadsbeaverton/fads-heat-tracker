@@ -125,13 +125,18 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08e
       <button class="btn" id="addEv">Add</button>
     </div>
     <div id="evList" style="margin-top:12px"></div>
-    <h2>Award breaks</h2>
+    <h2>Breaks (awards, lunch, dinner…)</h2>
     <div class="row">
-      <input id="awHeat" type="number" inputmode="numeric" placeholder="After heat #">
-      <input id="awTime" placeholder="Time (e.g. 11:00 AM)">
-      <button class="btn" id="addAw">Add</button>
+      <select id="bkType"><option value="awards">Awards</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="break" selected>Break</option><option value="custom">Other…</option></select>
+      <input id="bkLabel" class="hidden" placeholder="Name, e.g. Costume change">
     </div>
-    <div id="awList" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:8px">
+      <input id="bkHeat" type="number" inputmode="numeric" placeholder="After heat #">
+      <input id="bkMin" type="number" inputmode="numeric" placeholder="Minutes" value="15">
+      <button class="btn" id="addBk">Add</button>
+    </div>
+    <p class="hint" style="margin-top:8px">A break starts when its heat ends. Adding or lengthening one moves later heats that day back; removing it moves them up.</p>
+    <div id="bkList" style="margin-top:12px"></div>
   </div>
 
   <div id="tab-judges" class="hidden">
@@ -348,9 +353,12 @@ function renderSched() {
   $("#evList").innerHTML = (D.events || []).map((ev, i) => `<div class="item" data-i="${i}">
     <div class="row"><input data-f="time" value="${esc(ev.time || "")}" placeholder="Time"><input data-f="title" value="${esc(ev.title || "")}" placeholder="Event"></div>
     <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No events yet.</p>`;
-  $("#awList").innerHTML = (D.awards || []).map((a, i) => `<div class="item" data-i="${i}">
-    <div class="row"><input data-f="afterHeat" type="number" inputmode="numeric" value="${a.afterHeat}" placeholder="After heat"><input data-f="time" value="${esc(a.time || "")}" placeholder="Time"></div>
-    <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No award breaks yet.</p>`;
+  const opt = (v, t, cur) => `<option value="${v}"${v === cur ? " selected" : ""}>${t}</option>`;
+  $("#bkList").innerHTML = (D.breaks || []).map((b) => `<div class="item" data-id="${esc(b.id)}">
+    <div class="nm">${esc(b.type === "custom" ? b.label : { awards: "🏆 Awards", lunch: "🍽 Lunch", dinner: "🍽 Dinner", break: "Break" }[b.type] || "Break")} · after Heat ${b.afterHeat}${b.time ? " · " + esc(b.time) : ""}${b.day ? " · " + esc(b.day) : ""}</div>
+    <div class="row" style="margin-top:8px"><select data-f="type">${opt("awards", "Awards", b.type)}${opt("lunch", "Lunch", b.type)}${opt("dinner", "Dinner", b.type)}${opt("break", "Break", b.type)}${opt("custom", "Other…", b.type)}</select><input data-f="label" value="${esc(b.label || "")}" placeholder="Name" class="${b.type === "custom" ? "" : "hidden"}"></div>
+    <div class="row" style="margin-top:8px"><input data-f="afterHeat" type="number" inputmode="numeric" value="${b.afterHeat}" placeholder="After heat"><input data-f="minutes" type="number" inputmode="numeric" value="${b.minutes}" placeholder="Minutes"></div>
+    <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No breaks yet.</p>`;
 }
 
 function showPreview(p) {
@@ -465,15 +473,16 @@ $("#evList").onclick = async (e) => {
     if (await admin({ action: "update-event", i, title: item.querySelector("[data-f=title]").value, time: item.querySelector("[data-f=time]").value })) toast("Saved");
   }
 };
-$("#addAw").onclick = async () => { if (await admin({ action: "add-award", afterHeat: $("#awHeat").value, time: $("#awTime").value })) { $("#awHeat").value = ""; $("#awTime").value = ""; toast("Added"); render(); } };
-$("#awTime").onkeydown = (e) => { if (e.key === "Enter") $("#addAw").click(); };
-$("#awList").onclick = async (e) => {
+$("#bkType").onchange = () => $("#bkLabel").classList.toggle("hidden", $("#bkType").value !== "custom");
+$("#addBk").onclick = async () => {
+  if (await admin({ action: "add-break", type: $("#bkType").value, label: $("#bkLabel").value, afterHeat: $("#bkHeat").value, minutes: $("#bkMin").value })) { $("#bkHeat").value = ""; $("#bkLabel").value = ""; toast("Added · later heats moved"); render(); }
+};
+$("#bkList").onchange = (e) => { if (e.target.dataset.f === "type") e.target.closest(".item").querySelector("[data-f=label]").classList.toggle("hidden", e.target.value !== "custom"); };
+$("#bkList").onclick = async (e) => {
   const item = e.target.closest(".item"); if (!item) return;
-  const i = +item.dataset.i;
-  if (e.target.dataset.act === "del") { if (await admin({ action: "delete-award", i })) { toast("Deleted"); render(); } }
-  if (e.target.dataset.act === "save") {
-    if (await admin({ action: "update-award", i, afterHeat: item.querySelector("[data-f=afterHeat]").value, time: item.querySelector("[data-f=time]").value })) toast("Saved");
-  }
+  const id = item.dataset.id, f = (k) => item.querySelector("[data-f=" + k + "]").value;
+  if (e.target.dataset.act === "del") { if (confirm("Remove this break? Later heats that day move up.") && await admin({ action: "delete-break", id })) { toast("Removed"); render(); } }
+  if (e.target.dataset.act === "save") { if (await admin({ action: "update-break", id, type: f("type"), label: f("label"), afterHeat: f("afterHeat"), minutes: f("minutes") })) { toast("Saved"); render(); } }
 };
 
 async function readFile(file) {
