@@ -86,7 +86,7 @@ function migrateBreaks(d) {
   }
   return d;
 }
-// A break's name and icon: staff can rename any break ("Student Awards", "Lunch in the lobby") and pick its icon; otherwise the type's default.
+// A break's name and icon: staff can rename any break (e.g. "Lunch in the lobby") and pick its icon; otherwise the type's default.
 const BREAK_ICONS = { awards: "🏆", lunch: "🍽", dinner: "🍽" };
 function breakLabel(b) { return b.label || (b.type === "custom" ? "Break" : BREAK_LABELS[b.type] || "Break"); }
 function breakIcon(b) { return b.icon != null ? b.icon : BREAK_ICONS[b.type] || ""; }

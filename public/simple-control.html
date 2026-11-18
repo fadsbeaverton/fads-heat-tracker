@@ -129,7 +129,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
   </div>
   <div class="heats">
     <div class="lbl2">Heats</div>
-    <div id="heatList"></div>
+    <div id="heatList"></div><div id="listSpace" aria-hidden="true"></div>
   </div>
   </div>
   <div id="panelRes" class="res hidden">
@@ -159,7 +159,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
     <div class="bklbl">Type</div>
     <select id="bkType" aria-label="Type"><option value="awards">Awards</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="break">Break</option><option value="custom">Other…</option></select>
     <div class="bklbl">Shown as</div>
-    <div class="row"><input id="bkIcon" placeholder="Icon" maxlength="8" style="flex:0 0 72px;text-align:center" autocomplete="off"><input id="bkName" placeholder="Name, e.g. Student Awards" maxlength="40" autocomplete="off"></div>
+    <div class="row"><input id="bkIcon" placeholder="Icon" maxlength="8" style="flex:0 0 72px;text-align:center" autocomplete="off"><input id="bkName" placeholder="Name, e.g. Lunch in the lobby" maxlength="40" autocomplete="off"></div>
     <div class="icons" id="bkIcons"></div>
     <div class="bklbl">After heat</div>
     <div class="step"><button type="button" class="btn ghost" id="bkMinus">− 1</button><input id="bkHeat" type="number" inputmode="numeric" min="1"><button type="button" class="btn ghost" id="bkPlus">+ 1</button></div>
@@ -346,10 +346,20 @@ function curTarget() {
   return onAwards ? (document.querySelector('#heatList .heat[data-n="' + (awAfter + 1) + '"]') || document.querySelector('#heatList .heat[data-n="' + awAfter + '"]')) : document.querySelector('#heatList .heat[data-n="' + cur + '"]');
 }
 const panelBottom = () => $("#pinTop").getBoundingClientRect().bottom; // top line + tabs + pinned controls are all sticky
+// Space under the list so the current heat can always scroll up to just below the pinned controls (past heats tuck behind them).
+function sizeListSpace(el) {
+  const sp = $("#listSpace"); if (!sp) return;
+  el = el || curTarget();
+  if (!el) return;
+  const below = sp.getBoundingClientRect().top - el.getBoundingClientRect().top;
+  const h = Math.max(0, Math.ceil(window.innerHeight - panelBottom() - 10 - below));
+  if (sp.style.height !== h + "px") sp.style.height = h + "px";
+}
 function scrollToCur(smooth) {
   let el = curTarget();
   if (!el && (D.heats || []).length > BIG) { winBefore = WIN_BEFORE; winAfter = WIN_AFTER; listKey = null; renderList(); el = curTarget(); } // re-window around the floor
   if (!el) return false;
+  sizeListSpace(el);
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const y = el.getBoundingClientRect().top + window.scrollY - panelBottom() - 10;
   followUntil = Date.now() + 900; away = false; $("#recenter").classList.add("hidden");
@@ -408,7 +418,7 @@ function restoreAnchor(k) {
   if (el) { const d = el.getBoundingClientRect().top - k.top; if (Math.abs(d) > 0.5) window.scrollBy(0, d); }
 }
 addEventListener("scroll", () => { if (!pillRaf) pillRaf = requestAnimationFrame(() => { pillRaf = 0; syncPill(); }); }, { passive: true });
-addEventListener("resize", () => syncPill());
+addEventListener("resize", () => { sizeListSpace(); syncPill(); });
 // Break editor (PIN only): rename, change icon, move earlier/later, change minutes, add or delete. Later heats' times move with it.
 let bkId = null;
 const bkList = () => ((D && D.breaks) || []).slice().sort((a, b) => a.afterHeat - b.afterHeat);
@@ -426,7 +436,7 @@ function bkFill(id) {
   bkSync();
 }
 function bkSync() {
-  $("#bkName").placeholder = BREAK_N[$("#bkType").value] + ($("#bkType").value === "custom" ? " name (required)" : " (or type a name, e.g. Student Awards)");
+  $("#bkName").placeholder = BREAK_N[$("#bkType").value] + ($("#bkType").value === "custom" ? " name (required)" : " (or type your own name)");
   $("#bkIcons").innerHTML = ["🏆", "🍽", "☕", "🎉", "💃", "⏸"].map((i) => `<button type="button" data-i="${i}" class="${$("#bkIcon").value === i ? "on" : ""}">${i}</button>`).join("") + `<button type="button" data-i="" class="${$("#bkIcon").value === "" ? "on" : ""}" style="font-size:13px">None</button>`;
   const n = parseInt($("#bkHeat").value, 10), h = (D.heats || []).find((x) => x.n === n);
   $("#bkPrev").textContent = h ? `Starts after Heat ${n} (${fmtT(h.time)}${h.day ? " · " + h.day : ""}). Later heats move to fit.` : "Pick an existing heat.";

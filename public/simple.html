@@ -78,6 +78,7 @@ body{background:transparent!important}body::before{content:"";position:fixed;top
   <div id="past"></div>
   <div id="next"></div>
   <h2 id="restH">Your upcoming heats</h2><div id="rest"></div>
+  <div id="endSpace" aria-hidden="true"></div>
 </div>
 
 <div id="sched" class="hidden">
@@ -182,9 +183,9 @@ function syncRecenter() {
   btn.classList.toggle("hidden", !(onMain && $("#card") && !cardInView()));
   syncBrk();
 }
-function onScrollOrResize() {
+function onScrollOrResize(e) {
   if (recRaf) return;
-  recRaf = requestAnimationFrame(() => { recRaf = 0; syncRecenter(); });
+  recRaf = requestAnimationFrame(() => { recRaf = 0; if (e && e.type === "resize") sizeSpacer(); syncRecenter(); });
 }
 // Scroll target for the next-heat card: include its day header (multi-day comps) so it isn't hidden under the sticky panel.
 const withDayHdr = (el) => { const p = el && el.previousElementSibling; return p && p.classList.contains("dayh") ? p : el; };
@@ -192,20 +193,36 @@ function scrollToCard(smooth) {
   const el = withDayHdr($("#card"));
   if (!el) return;
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const top = el.getBoundingClientRect().top + window.scrollY - stickyCut();
-  window.scrollTo({ top: Math.max(0, top), behavior: (smooth && !reduce) ? "smooth" : "auto" });
+  sizeSpacer();
+  const top = $("#past").children.length ? tuckTop() : 0;
+  window.scrollTo({ top, behavior: (smooth && !reduce) ? "smooth" : "auto" });
+}
+// Scroll position that puts the last danced heat exactly behind the live counter (the next card sits right under it).
+const tuckTop = () => Math.max(0, Math.round($("#past").getBoundingClientRect().bottom + window.scrollY - (stickyCut() - 12)));
+// Space under the list so the next-heat card can always scroll up to just below the live counter,
+// hiding already-danced heats behind it even when only a few heats are left.
+function sizeSpacer() {
+  const sp = $("#endSpace"); if (!sp) return;
+  if (!$("#card") || !$("#past").children.length) { if (sp.style.height !== "0px") sp.style.height = "0px"; return; }
+  const below = sp.getBoundingClientRect().top - $("#past").getBoundingClientRect().bottom; // end of the danced heats to end of the list
+  const padB = parseFloat(getComputedStyle($("#main")).paddingBottom) || 0;
+  const h = Math.max(0, Math.ceil(window.innerHeight - (stickyCut() - 12) - below - padB));
+  if (sp.style.height !== h + "px") sp.style.height = h + "px";
 }
 function scrollToFocus(key) {
   if (key === focusKey) return;
+  const first = focusKey === null;
   focusKey = key;
   const el = withDayHdr($("#card")) || (key === "done" ? $(".celebrate") : null);
   if (!el) { hideRecenter(); return; }
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    const rect = el.getBoundingClientRect();
-    const sticky = stickyCut();
-    if (rect.top >= sticky - 2 && rect.bottom <= window.innerHeight - (document.body.classList.contains("has-brk") ? 70 : 16)) { syncRecenter(); return; }
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({ top: Math.max(0, rect.top + window.scrollY - sticky), behavior: reduce ? "auto" : "smooth" });
+    sizeSpacer();
+    // Heats already danced sit above the card: tuck them behind the live counter. Nothing danced yet: stay at the top.
+    const top = $("#past").children.length && $("#card") ? tuckTop() : 0;
+    if (Math.abs(top - window.scrollY) > 2) {
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top, behavior: reduce || first ? "auto" : "smooth" });
+    }
     syncRecenter();
   }));
 }
@@ -289,6 +306,7 @@ function render() {
   }
   brkNow = awSorted[0] || null;
   syncBrk();
+  sizeSpacer();
   scrollToFocus(focus);
   syncRecenter();
 }
@@ -357,6 +375,7 @@ const annRO = new ResizeObserver(() => {
   document.documentElement.style.setProperty("--annH", h + "px");
   // The sticky panel grew or shrank: if the dancer was looking at their next heat (no recenter pill), keep it in view below the panel.
   const wasFocused = $("#recenter").classList.contains("hidden");
+  if (h !== annHPrev) sizeSpacer();
   if (h !== annHPrev && wasFocused && $("#card") && window.scrollY > 0) requestAnimationFrame(() => scrollToCard(false));
   annHPrev = h;
 });
