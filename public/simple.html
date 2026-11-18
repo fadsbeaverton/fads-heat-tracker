@@ -13,7 +13,7 @@
 .floor{position:sticky;top:calc(var(--topH) + var(--annH,0px));z-index:5;background:#fff;box-shadow:0 -40px 0 40px #fff;margin:0 0 14px;border:2px solid var(--ink);border-radius:16px;padding:8px 16px 8px}
 .floor .fl1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;height:18px;line-height:18px}
 .floor small{display:block;flex-shrink:0;font-size:12px;line-height:18px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
-.floor b{display:block;font-size:40px;height:46px;line-height:46px;font-weight:800;letter-spacing:-.02em;margin-top:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.floor.awards b{font-size:34px;letter-spacing:-.02em}.floor.awards b.long{font-size:26px}
+.floor b{display:block;font-size:40px;height:46px;line-height:46px;font-weight:800;letter-spacing:-.02em;margin-top:0;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}.floor.awards b{font-size:34px;letter-spacing:-.02em}.floor.awards b.long{font-size:26px}.floor.awards b.xlong{font-size:20px;text-overflow:ellipsis}
 .floor .d{min-width:0;font-size:15px;font-weight:600;color:var(--ink);line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}.floor .l{font-size:19px;color:var(--mut);margin-top:2px}
 .signin{margin-top:16vh}.signin h1{font-size:30px;margin:0 0 6px}.signin p{color:var(--mut);margin:0 0 22px}
 input{width:100%;font-size:28px;padding:16px 18px;border:2px solid var(--line);border-radius:14px;outline:none;text-align:center;letter-spacing:.3em;text-transform:uppercase;font-weight:700}
@@ -238,7 +238,7 @@ function render() {
     $("#nowNum").closest(".floor").classList.toggle("awards", onAwards);
     if (onAwards) {
       $("#nowNum").textContent = brkTitle(live.awards);
-      $("#nowNum").classList.toggle("long", brkTitle(live.awards).length > 11);
+      { const L = brkTitle(live.awards).length; $("#nowNum").classList.toggle("long", L > 11 && L <= 16); $("#nowNum").classList.toggle("xlong", L > 16); }
       $("#nowDance").textContent = "after Heat " + Number(live.awards.afterHeat);
     } else {
       $("#nowNum").textContent = "Heat " + cur;

@@ -356,7 +356,7 @@ function renderSched() {
   const opt = (v, t, cur) => `<option value="${v}"${v === cur ? " selected" : ""}>${t}</option>`;
   $("#bkList").innerHTML = (D.breaks || []).map((b) => `<div class="item" data-id="${esc(b.id)}">
     <div class="nm">${esc(b.type === "custom" ? b.label : { awards: "🏆 Awards", lunch: "🍽 Lunch", dinner: "🍽 Dinner", break: "Break" }[b.type] || "Break")} · after Heat ${b.afterHeat}${b.time ? " · " + esc(b.time) : ""}${b.day ? " · " + esc(b.day) : ""}</div>
-    <div class="row" style="margin-top:8px"><select data-f="type">${opt("awards", "Awards", b.type)}${opt("lunch", "Lunch", b.type)}${opt("dinner", "Dinner", b.type)}${opt("break", "Break", b.type)}${opt("custom", "Other…", b.type)}</select><input data-f="label" value="${esc(b.label || "")}" placeholder="Name" class="${b.type === "custom" ? "" : "hidden"}"></div>
+    <div class="row" style="margin-top:8px"><select data-f="type">${opt("awards", "Awards", b.type)}${opt("lunch", "Lunch", b.type)}${opt("dinner", "Dinner", b.type)}${opt("break", "Break", b.type)}${opt("custom", "Other…", b.type)}</select><input data-f="label" value="${esc(b.label || "")}" placeholder="${b.type === "custom" ? "Name" : "Name (optional)"}"></div>
     <div class="row" style="margin-top:8px"><input data-f="afterHeat" type="number" inputmode="numeric" value="${b.afterHeat}" placeholder="After heat"><input data-f="minutes" type="number" inputmode="numeric" value="${b.minutes}" placeholder="Minutes"></div>
     <div class="acts"><button class="btn small" data-act="save">Save</button><button class="btn danger small" data-act="del">Delete</button></div></div>`).join("") || `<p class="hint">No breaks yet.</p>`;
 }
@@ -477,7 +477,7 @@ $("#bkType").onchange = () => $("#bkLabel").classList.toggle("hidden", $("#bkTyp
 $("#addBk").onclick = async () => {
   if (await admin({ action: "add-break", type: $("#bkType").value, label: $("#bkLabel").value, afterHeat: $("#bkHeat").value, minutes: $("#bkMin").value })) { $("#bkHeat").value = ""; $("#bkLabel").value = ""; toast("Added · later heats moved"); render(); }
 };
-$("#bkList").onchange = (e) => { if (e.target.dataset.f === "type") e.target.closest(".item").querySelector("[data-f=label]").classList.toggle("hidden", e.target.value !== "custom"); };
+
 $("#bkList").onclick = async (e) => {
   const item = e.target.closest(".item"); if (!item) return;
   const id = item.dataset.id, f = (k) => item.querySelector("[data-f=" + k + "]").value;

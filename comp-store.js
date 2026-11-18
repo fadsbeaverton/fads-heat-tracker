@@ -86,7 +86,11 @@ function migrateBreaks(d) {
   }
   return d;
 }
-function breakLabel(b) { return b.type === "custom" ? (b.label || "Break") : BREAK_LABELS[b.type] || "Break"; }
+// A break's name and icon: staff can rename any break ("Student Awards", "Lunch in the lobby") and pick its icon; otherwise the type's default.
+const BREAK_ICONS = { awards: "🏆", lunch: "🍽", dinner: "🍽" };
+function breakLabel(b) { return b.label || (b.type === "custom" ? "Break" : BREAK_LABELS[b.type] || "Break"); }
+function breakIcon(b) { return b.icon != null ? b.icon : BREAK_ICONS[b.type] || ""; }
+function breakTitle(b) { const i = breakIcon(b); return (i ? i + " " : "") + breakLabel(b); }
 function saveBreak(d, body, b) {
   const type = ["awards", "lunch", "dinner", "break", "custom"].includes(body.type) ? body.type : body.type != null ? breakTypeOf(body.type) : (b ? b.type : "break");
   const label = String(body.label != null ? body.label : (b && b.label) || "").trim().slice(0, 40);
@@ -99,7 +103,9 @@ function saveBreak(d, body, b) {
   if (d.breaks.some((x) => x !== b && x.afterHeat === afterHeat)) throw new Error("There's already a break after heat " + afterHeat + ". Edit that one instead.");
   if (b) shiftAfter(d, b.afterHeat, -b.minutes);
   if (!b) { const id = Math.max(0, ...d.breaks.map((x) => Number(String(x.id || "").replace(/\D/g, "")) || 0)) + 1; b = { id: "b" + id }; d.breaks.push(b); }
-  b.type = type; if (type === "custom") b.label = label; else delete b.label;
+  b.type = type; if (label) b.label = label; else delete b.label;
+  if (body.icon !== undefined) { const ic = body.icon == null ? null : String(body.icon).trim().slice(0, 8); if (ic == null || ic === (BREAK_ICONS[type] || "")) delete b.icon; else b.icon = ic; }
+  else if (b.icon != null && b.icon === (BREAK_ICONS[type] || "")) delete b.icon;
   b.afterHeat = afterHeat; b.minutes = minutes;
   shiftAfter(d, afterHeat, minutes);
   placeBreaks(d);
@@ -738,4 +744,4 @@ function apply(d, b) {
   return { ok: true, data: d };
 }
 
-module.exports = { load, save, apply, exportCsv, toMin, fmt, ALPHA, FILE, migrateBreaks, breakLabel };
+module.exports = { load, save, apply, exportCsv, toMin, fmt, ALPHA, FILE, migrateBreaks, breakLabel, breakIcon, breakTitle, BREAK_ICONS };

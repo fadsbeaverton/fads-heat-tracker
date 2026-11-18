@@ -65,8 +65,7 @@ function judgeHeat(j, h) {
 
 // Public data: the heat program only (no students, no entries, no codes). Full data needs the staff PIN.
 // Scheduled breaks (awards, lunch, dinner, short breaks…) as clients show them.
-const BREAK_ICON = { awards: "🏆 ", lunch: "🍽 ", dinner: "🍽 " };
-const breakPub = (b) => ({ id: b.id, type: b.type, afterHeat: b.afterHeat, minutes: b.minutes, time: b.time, minute: b.minute, day: b.day, title: (BREAK_ICON[b.type] || "") + store.breakLabel(b) });
+const breakPub = (b) => ({ id: b.id, type: b.type, afterHeat: b.afterHeat, minutes: b.minutes, time: b.time, minute: b.minute, day: b.day, title: store.breakTitle(b) });
 // Schedule view: the event list with breaks merged in at their place in the day.
 function eventsWithBreaks() {
   const dayIx = new Map(); for (const h of DATA.heats) if (h.day && !dayIx.has(h.day)) dayIx.set(h.day, dayIx.size);
@@ -152,7 +151,7 @@ function body(req) { return new Promise((ok) => { let b = ""; req.on("data", (c)
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const p = url.pathname;
-  if (p === "/api/data") return json(res, 200, isStaff(req, url) ? DATA : PUBLIC_DATA); // full list + codes only with staff PIN
+  if (p === "/api/data") return json(res, 200, isStaff(req, url) ? { ...DATA, breaks: (DATA.breaks || []).map((b) => ({ ...b, title: store.breakTitle(b), icon: store.breakIcon(b), name: store.breakLabel(b) })) } : PUBLIC_DATA); // full list + codes only with staff PIN
   if (p === "/api/state" && req.method === "GET") return json(res, 200, pub());
   if (p === "/api/me") {
     const ip = ipOf(req), b = bad.get(ip);
