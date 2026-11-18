@@ -246,8 +246,9 @@ function render() {
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
   rowDay = null;
   const pastHtml = pastHeats.map((h) => dayHdr(h) + heatRow(h, true)).join("");
-  // Awards always sit at the bottom of the list, after all of the dancer's heats, in time order.
-  const awSorted = aw.slice().sort((a, b) => a.afterHeat - b.afterHeat);
+  // One awards pill, always at the bottom of the list: the current awards, or else the next upcoming one.
+  // When it's over, the next upcoming award takes its place.
+  const awSorted = aw.slice().sort((a, b) => a.afterHeat - b.afterHeat).slice(0, 1);
   let nextHtml = "";
   if (nx) nextHtml += dayHdr(nx);
   if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>`;
