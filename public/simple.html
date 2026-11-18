@@ -146,7 +146,8 @@ started = true; Live.start(); }
 }
 function awardRow(a) {
   const on = live && live.awards && live.awards.afterHeat === a.afterHeat;
-  return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)} 🏆</span></div>`;
+  const at = a.time ? " · " + esc(String(a.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "";
+  return `<div class="award${on ? " now" : ""}"><span>🏆 Awards - after Heat ${Number(a.afterHeat)}${at} 🏆</span></div>`;
 }
 // Multi-day comps: heats carry a day label ("Fri, Dec 4"); single-day comps have none and render exactly as before.
 const sameDay = (h) => !h.day || !live || !live.now || !live.now.day || h.day === live.now.day;
@@ -245,7 +246,8 @@ function render() {
   const later = aw.filter((a) => nx && a.afterHeat >= nx.n);
   rowDay = null;
   const pastHtml = pastHeats.map((h) => dayHdr(h) + heatRow(h, true)).join("");
-  let nextHtml = before.map(awardRow).join("");
+  // Awards sit in the list after the heat they follow (like Admin). Once the dancer is done, they go at the bottom, after their heats.
+  let nextHtml = nx ? before.map(awardRow).join("") : "";
   if (nx) nextHtml += dayHdr(nx);
   if (!nx) nextHtml += `<div class="celebrate"><div class="cemoji">🎉</div><div class="ctitle">You're all done for today!</div><div class="csub">Great dancing 💃🕺</div></div>` + later.map(awardRow).join("");
   else {
@@ -263,9 +265,9 @@ function render() {
     let restHtml = "";
     if (!nx) {
       $("#past").innerHTML = "";
-      restHtml = pastHtml;
+      restHtml = pastHtml + before.map(awardRow).join("");
       $("#restH").textContent = "Your heats today";
-      $("#restH").classList.toggle("hidden", !pastHeats.length);
+      $("#restH").classList.toggle("hidden", !pastHeats.length && !before.length);
     } else {
       $("#past").innerHTML = pastHtml;
       const pending = later.slice();
