@@ -69,6 +69,8 @@ button{font:inherit;border:0;border-radius:18px;cursor:pointer}
 .sheet .lbl2{font-size:15px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:15px;z-index:30}
 .recenter{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;background:var(--ink);color:#fff;border:0;border-radius:999px;padding:10px 18px;font-size:14px;font-weight:700;letter-spacing:.01em;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);cursor:pointer}
+.brkdiv{display:flex;align-items:center;gap:10px;margin:2px 4px 12px;font-size:12px;font-weight:600;color:var(--mut);white-space:nowrap}.brkdiv::before,.brkdiv::after{content:"";flex:1;border-top:1px solid #d6d6d6}.brkdiv span{overflow:hidden;text-overflow:ellipsis;max-width:80%}
+.brkdiv.cur{color:var(--ink);font-weight:800}.brkdiv.cur::before,.brkdiv.cur::after{border-top:2px solid var(--ink)}
 #heatList{overflow-anchor:none;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 .awrow.brkfix{cursor:pointer;position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;margin:0;max-width:calc(100vw - 24px);white-space:nowrap;padding:8px 22px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
 .awrow.brkfix span:first-child{overflow:hidden;text-overflow:ellipsis}body.sheet-open .brkfix{display:none}.awrow.brkfix.add{background:#fff;border-style:dashed;color:var(--mut)}.awrow.brkfix .ed{font-size:11px;font-weight:700;color:var(--mut);text-decoration:underline}
@@ -285,6 +287,7 @@ function renderList() {
   const keep = scrollAnchor();
   const moreBtn = (dir, n) => n ? `<button type="button" class="more" data-more="${dir}">Show ${Math.min(100, n)} ${dir === "before" ? "earlier" : "later"} heats (${n} hidden)</button>` : "";
   let dayLbl = null;
+  const brkAt = new Map(((D.breaks || D.awards) || []).map((b) => [Number(b.afterHeat), b]));
   $("#heatList").innerHTML = moreBtn("before", hiddenBefore) + heats.map((h) => {
     const dayHd = h.day && h.day !== dayLbl ? `<div class="lbl2 dayh">${esc(h.day)}</div>` : "";
     if (h.day) dayLbl = h.day;
@@ -295,7 +298,10 @@ function renderList() {
     const bits = ["Heat " + h.n + (h.time ? " - " + esc(String(h.time).replace(/\s*(AM|PM)$/i, (m, x) => x.toLowerCase())) : "")];
     if (h.dance) bits.push(esc(abbr(h.dance)));
 
-    return dayHd + `<div class="heat${on ? " cur" : past ? " past" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>`;
+    // Inline divider (display only) after a heat with a scheduled break, so pauses are easy to spot.
+    const bk = brkAt.get(h.n), bon = bk && onAwards && awAfter === h.n;
+    const div = bk ? `<div class="brkdiv${bon ? " cur" : ""}" data-aw="${h.n}"><span>${esc(brkTitle(bk))}${bk.time ? " · " + esc(bk.time) : ""}${bk.minutes ? " · " + Number(bk.minutes) + " min" : ""}${bon ? " · Now" : ""}</span></div>` : "";
+    return dayHd + `<div class="heat${on ? " cur" : past ? " past" : ""}" data-n="${h.n}"><div class="hd"><div class="nm">${bits.join(" · ")}</div>${on ? '<span class="onfl">On floor</span>' : ""}</div><div class="cps">${people}</div></div>` + div;
   }).join("") + moreBtn("after", hiddenAfter) || `<p class="hint">No heats yet.</p>`;
   restoreAnchor(keep);
 }
@@ -343,7 +349,7 @@ let lastKey = null, awAfter = null;
 new ResizeObserver(() => document.documentElement.style.setProperty("--tabsH", $("#tabs").getBoundingClientRect().height + "px")).observe($("#tabs"));
 // Current heat (or the live awards row) in the list.
 function curTarget() {
-  return onAwards ? (document.querySelector('#heatList .heat[data-n="' + (awAfter + 1) + '"]') || document.querySelector('#heatList .heat[data-n="' + awAfter + '"]')) : document.querySelector('#heatList .heat[data-n="' + cur + '"]');
+  return onAwards ? (document.querySelector('#heatList .brkdiv[data-aw="' + awAfter + '"]') || document.querySelector('#heatList .heat[data-n="' + (awAfter + 1) + '"]') || document.querySelector('#heatList .heat[data-n="' + awAfter + '"]')) : document.querySelector('#heatList .heat[data-n="' + cur + '"]');
 }
 const panelBottom = () => $("#pinTop").getBoundingClientRect().bottom; // top line + tabs + pinned controls are all sticky
 // Space under the list so the current heat can always scroll up to just below the pinned controls (past heats tuck behind them).
