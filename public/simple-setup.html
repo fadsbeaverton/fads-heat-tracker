@@ -250,6 +250,7 @@ async function unlock() {
 function showTab(t) {
   tab = t;
   $$(".tabs button").forEach((b) => b.classList.toggle("act", b.dataset.t === t));
+  if (window.scrollY > 0) window.scrollTo(0, 0); // each tab opens at the top
   ["students", "heats", "sched", "judges", "multi", "import"].forEach((id) => $("#tab-" + id).classList.toggle("hidden", id !== t));
   if (t === "students") { editing = null; $("#stuEdit").classList.add("hidden"); $("#stuListWrap").classList.remove("hidden"); }
   if (t === "multi") loadSug();

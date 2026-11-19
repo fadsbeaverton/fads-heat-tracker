@@ -519,7 +519,7 @@ function showTab(t) {
   $("#tabRes").classList.toggle("act", t === "res");
   $("#panelRes").classList.toggle("hidden", t !== "res");
   if (t === "res") Results.open();
-  if (t !== "heats") closeSheet();
+  if (t !== "heats") { closeSheet(); window.scrollTo(0, 0); } // other tabs always open at the very top (no scroll carried over from the heat list)
   syncPill();
 }
 $("#tabs").onclick = (e) => { const b = e.target.closest("button[data-t]"); if (b) showTab(b.dataset.t); };
